@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logistica AEFCUP</title>
+    <link rel="stylesheet" href="styles.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="/lib/LogoBranco.png">
+</head>
+<body>
+    <div class="card">
+        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px;">
+            <h2 id="welcomeName">Olá...</h2>
+            
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <div class="user-menu">
+                    <div class="avatar-bubble" onclick="toggleMenu()" id="userAvatar">
+                        <span id="userInitial">U</span>
+                    </div>
+                    
+                    <div id="avatarDropdown" class="dropdown-content">
+                        <div style="padding: 10px; border-bottom: 1px solid #eee;">
+                            <strong id="menuName">Nome</strong><br>
+                            <small id="menuDept" style="color: #70757a;">Departamento</small>
+                        </div>
+                        <a href="/profile.html">⚙️ Editar Perfil</a>
+                        <a href="#" onclick="logout()" style="color: var(--danger);">🚪 Sair</a>
+                    </div>
+                </div>
+            </div>
+        </header>
+        <section id="coordArea" style="display: none; border-bottom: 2px solid #f1f3f4; padding-bottom: 30px; margin-bottom: 30px;">
+            <h3>Novo Pedido de Logística</h3>
+            <p style="font-size: 13px; color: #1a73e8; margin-top: -10px;">
+                Departamento: <strong id="autoDept">---</strong>
+            </p>
+            
+            <div class="form-grid">
+                <div>
+                    <label>Tipo de Serviço</label>
+                    <select id="service">
+                        <option value="Logística de Eventos">Logística de Eventos</option>
+                        <option value="Inventário">Inventário</option>
+                        <option value="Marcação de Turnos">Marcação de Turnos</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Nome do Evento</label>
+                    <input type="text" id="evName" placeholder="Ex: Gala AEF CUP">
+                </div>
+                <div>
+                    <label>Data do Evento</label>
+                    <input type="date" id="evDate">
+                </div>
+                <div>
+                    <label>Título Curto</label>
+                    <input type="text" id="title" placeholder="Ex: Requisição de Som">
+                </div>
+            </div>
+
+            <label>Informações Relativas ao Evento (Descrição)</label>
+            <textarea id="desc" rows="3" placeholder="Descreva detalhadamente o que é necessário..."></textarea>
+            
+            <label>Observações</label>
+            <textarea id="obs" rows="2" placeholder="Notas adicionais..."></textarea>
+
+            <button onclick="submitReq()" id="btnSubmit" style="margin-top: 10px; width: 100%;">Enviar Pedido para Logística</button>
+        </section>
+
+        <section id="statsArea" style="display: none; flex-direction: column; gap: 20px; margin-bottom: 30px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px;">
+                <div class="card" style="text-align: center; border-top: 4px solid #1a73e8; padding: 15px;">
+                    <h4 style="margin: 0; color: #70757a;">Pendentes</h4>
+                    <h2 id="statPending" style="margin: 10px 0; color: #1a73e8;">0</h2>
+                </div>
+                <div class="card" style="text-align: center; border-top: 4px solid #f9ab00; padding: 15px;">
+                    <h4 style="margin: 0; color: #70757a;">Em Curso</h4>
+                    <h2 id="statAccepted" style="margin: 10px 0; color: #f9ab00;">0</h2>
+                </div>
+                <div class="card" style="text-align: center; border-top: 4px solid #188038; padding: 15px;">
+                    <h4 style="margin: 0; color: #70757a;">Concluídos</h4>
+                    <h2 id="statCompleted" style="margin: 10px 0; color: #188038;">0</h2>
+                </div>
+            </div>
+
+            <div class="card" style="padding: 20px;">
+                <h3 style="margin-top: 0; font-size: 16px;">Distribuição por Departamento</h3>
+                <div id="deptStatsList" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                    </div>
+            </div>
+        </section>
+
+        <div id="logisticsFilter" style="display: none; margin-bottom: 25px; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #1a73e8;">
+            <label style="font-weight: bold; margin-right: 10px;">🔍 Filtrar por Departamento:</label>
+            <select id="deptFilter" onchange="filterData()" style="width: auto; margin: 0;">
+                <option value="ALL">Todos os Departamentos</option>
+                <option value="Núcleo de Gestão">Núcleo de Gestão</option>
+                <option value="Apoio ao Estudante">Apoio ao Estudante</option>
+                <option value="Desportivo">Desportivo</option>
+                <option value="Emprego e Formação">Emprego e Formação</option>
+                <option value="Intervenção Social e Sustentabilidade">Intervenção Social e Sustentabilidade</option>
+                <option value="Marketing">Marketing</option>
+                <option value="Recreativo e Cultural">Recreativo e Cultural</option>
+            </select>
+        </div>
+
+        <h3>Histórico de Pedidos</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Dept</th>
+                        <th>Pedido</th>
+                        <th>Evento</th>
+                        <th>Estado</th>
+                        <th>Ação</th>
+                    </tr>
+                </thead>
+                <tbody id="reqTable"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="detailsModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
+        <div style="background:white; margin:10% auto; padding:30px; border-radius:12px; max-width:600px; position:relative; box-shadow: 0 5px 15px rgba(0,0,0,0.3);">
+            <span onclick="closeModal()" style="position:absolute; right:20px; top:15px; cursor:pointer; font-size:24px; font-weight:bold;">&times;</span>
+            <h2 id="mTitle" style="margin-top:0; color:#1a73e8;">Detalhes do Pedido</h2>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+                <p><strong>Evento:</strong> <span id="mEvent"></span></p>
+                <p><strong>Data:</strong> <span id="mDate"></span></p>
+                <p><strong>Tipo:</strong> <span id="mType"></span></p>
+            </div>
+            <hr style="border:0; border-top:1px solid #eee;">
+            <p><strong>Progresso:</strong></p>
+            <div style="background: #e8eaed; border-radius: 10px; height: 10px; width: 100%; margin-bottom: 20px;">
+                <div id="mProgress" style="background: #188038; height: 100%; border-radius: 10px; width: 0%; transition: width 0.5s;"></div>
+            </div>
+            <p><strong>Descrição:</strong></p>
+            <div id="mDesc" style="background:#f9f9f9; padding:15px; border-radius:8px; margin-bottom:15px; font-size:14px; line-height:1.5;"></div>
+            <p><strong>Observações:</strong></p>
+            <p id="mObs" style="font-style:italic; color:#555; background:#fffbe6; padding:10px; border-radius:8px; border-left:4px solid #ffe58f;"></p>
+            <button onclick="closeModal()" style="width:100%; margin-top:15px; background:#5f6368;">Fechar</button>
+        </div>
+    </div>
+
+<script>
+    // 1. SESSION & UI INITIALIZATION
+    const userData = localStorage.getItem('user');
+    if (!userData) window.location.href = "/";
+    const user = JSON.parse(userData);
+    let allReqs = [];
+
+    if (user) {
+        // Update Basic Info
+        document.getElementById('welcomeName').innerText = `Olá, ${user.name}`;
+        document.getElementById('menuName').innerText = user.name;
+        document.getElementById('menuDept').innerText = user.department;
+        
+        // Handle Profile Bubble View
+        updateAvatar();
+
+        // Role-based visibility and Admin Link insertion
+        if (user.role === 'LOGISTICA') {
+            document.getElementById('statsArea').style.display = 'flex';
+            document.getElementById('logisticsFilter').style.display = 'block';
+
+            // INSERT ADMIN LINK IN DROPDOWN
+            const dropdown = document.getElementById('avatarDropdown');
+            if (dropdown && !document.getElementById('adminLink')) {
+                const adminLink = document.createElement('a');
+                adminLink.id = "adminLink";
+                adminLink.href = "/admin.html";
+                adminLink.innerHTML = "👥 Gerir Utilizadores";
+                adminLink.style.fontWeight = "bold";
+                adminLink.style.color = "var(--primary)";
+                dropdown.prepend(adminLink); 
+            }
+        } else {
+            document.getElementById('coordArea').style.display = 'block';
+            document.getElementById('autoDept').innerText = user.department;
+        }
+    }
+
+    // 2. DATA LOADING
+    async function load() {
+        try {
+            const r = await fetch(`/api/requests/list?userId=${user.id}&role=${user.role}`);
+            allReqs = await r.json();
+            updateStats(allReqs);
+            filterData();
+        } catch (err) {
+            console.error("Erro ao carregar dados:", err);
+        }
+    }
+
+    // 3. STATISTICS & FILTERING
+    function updateStats(data) {
+        if (user.role !== 'LOGISTICA') return;
+        const stats = { PENDING: 0, ACCEPTED: 0, COMPLETED: 0 };
+        const depts = {};
+
+        data.forEach(req => {
+            if (stats[req.status] !== undefined) stats[req.status]++;
+            depts[req.department] = (depts[req.department] || 0) + 1;
+        });
+
+        document.getElementById('statPending').innerText = stats.PENDING;
+        document.getElementById('statAccepted').innerText = stats.ACCEPTED;
+        document.getElementById('statCompleted').innerText = stats.COMPLETED;
+
+        const list = document.getElementById('deptStatsList');
+        if (list) {
+            list.innerHTML = Object.entries(depts).map(([name, count]) => `
+                <div style="background: white; padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; border: 1px solid #eee;">
+                    <span style="font-size:13px;">${name}</span><b>${count}</b>
+                </div>`).join('');
+        }
+    }
+
+    function filterData() {
+        const filterEl = document.getElementById('deptFilter');
+        const filterVal = filterEl ? filterEl.value : "ALL";
+        const data = filterVal === "ALL" ? allReqs : allReqs.filter(r => r.department === filterVal);
+        renderTable(data);
+    }
+
+    function renderTable(data) {
+        const table = document.getElementById('reqTable');
+        table.innerHTML = data.map(i => {
+            let actionBtn = '-';
+            if (user.role === 'LOGISTICA') {
+                if (i.status === 'PENDING') {
+                    actionBtn = `<button onclick="upd(${i.id},'ACCEPTED')" style="background:var(--primary); font-size:11px;">Aceitar</button>`;
+                } else if (i.status === 'ACCEPTED') {
+                    actionBtn = `<button onclick="upd(${i.id},'COMPLETED')" style="background:var(--success); font-size:11px;">Concluir</button>`;
+                }
+            }
+            return `<tr>
+                <td><strong>${i.department}</strong></td>
+                <td>${i.title}</td>
+                <td>${i.eventName || 'N/A'}<br><small>${i.eventDate || ''}</small></td>
+                <td><span class="status status-${i.status.toLowerCase()}">${i.status}</span></td>
+                <td>
+                    <button onclick='viewDetails(${JSON.stringify(i)})' style="background:#5f6368; font-size:11px; margin-right:5px;">Info</button>
+                    ${actionBtn}
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    // 4. ACTIONS: SUBMIT & UPDATE
+    async function submitReq() {
+        const body = {
+            title: document.getElementById('title').value,
+            description: document.getElementById('desc').value,
+            authorId: user.id,
+            department: user.department,
+            serviceType: document.getElementById('service').value,
+            eventName: document.getElementById('evName').value,
+            eventDate: document.getElementById('evDate').value,
+            observations: document.getElementById('obs').value
+        };
+        await fetch('/api/requests', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify(body) 
+        });
+        document.querySelectorAll('#coordArea input, #coordArea textarea').forEach(el => el.value = "");
+        load();
+    }
+
+    async function upd(id, status) {
+        await fetch('/api/requests/update', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({id, status, role: user.role}) 
+        });
+        load();
+    }
+
+    // 5. MODAL & UI UTILS
+    function viewDetails(req) {
+        document.getElementById('mTitle').innerText = req.title;
+        document.getElementById('mEvent').innerText = req.eventName || "N/A";
+        document.getElementById('mDate').innerText = req.eventDate || "---";
+        document.getElementById('mType').innerText = req.serviceType;
+        document.getElementById('mDesc').innerText = req.description;
+        document.getElementById('mObs').innerText = req.observations || "Sem observações.";
+        
+        const prog = document.getElementById('mProgress');
+        prog.style.width = req.status === 'PENDING' ? "10%" : req.status === 'ACCEPTED' ? "50%" : "100%";
+        document.getElementById('detailsModal').style.display = "block";
+    }
+
+    function closeModal() { document.getElementById('detailsModal').style.display = "none"; }
+    
+    function toggleMenu() { document.getElementById("avatarDropdown").classList.toggle("show"); }
+
+    function updateAvatar() {
+        const bubble = document.getElementById('userAvatar');
+        if (user.photo && !user.photo.startsWith('#')) {
+            // Display Uploaded Photo
+            bubble.style.backgroundColor = 'transparent';
+            bubble.innerHTML = `<img src="${user.photo}" style="width:100%; height:100%; object-fit:cover;" onerror="this.src=''; this.parentElement.style.backgroundColor='var(--primary)'; this.parentElement.innerHTML='<span id=\'userInitial\'>${user.name.charAt(0).toUpperCase()}</span>';">`;
+        } else {
+            // Display Color Circle with Initial
+            bubble.style.backgroundColor = user.photo || 'var(--primary)';
+            bubble.innerHTML = `<span id="userInitial">${user.name.charAt(0).toUpperCase()}</span>`;
+        }
+    }
+
+    // Event Listeners
+    window.onclick = function(event) {
+        if (!event.target.matches('.avatar-bubble') && !event.target.matches('#userInitial')) {
+            document.getElementById("avatarDropdown")?.classList.remove('show');
+        }
+        if (event.target == document.getElementById('detailsModal')) closeModal();
+    }
+
+    function logout() { localStorage.clear(); window.location.href = "/"; }
+
+    load();
+</script>
+</body>
+</html>

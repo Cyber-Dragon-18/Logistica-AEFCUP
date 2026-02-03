@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Utilizadores - Admin</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/x-icon" href="/lib/LogoBranco.png">
+</head>
+<body>
+    <div class="card">
+        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+            <h2>Gestão de Utilizadores</h2>
+            <button onclick="window.location.href='/dashboard.html'" style="background:#5f6368;">Voltar</button>
+        </header>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Email</th>
+                        <th>Departamento</th>
+                        <th>Cargo Atual</th>
+                        <th>Ação</th>
+                    </tr>
+                </thead>
+                <tbody id="userTable"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user || user.role !== 'LOGISTICA') window.location.href = "/dashboard.html";
+
+        async function loadUsers() {
+            const r = await fetch(`/api/admin/users?role=${user.role}`);
+            const users = await r.json();
+            
+            document.getElementById('userTable').innerHTML = users.map(u => `
+                <tr>
+                    <td><strong>${u.name}</strong></td>
+                    <td>${u.email}</td>
+                    <td>${u.department}</td>
+                    <td><span class="status ${u.role === 'LOGISTICA' ? 'status-accepted' : 'status-pending'}">${u.role}</span></td>
+                    <td>
+                        <button onclick="changeRole(${u.id}, '${u.role === 'LOGISTICA' ? 'COORDENADOR' : 'LOGISTICA'}')" 
+                                style="font-size:11px; background:${u.role === 'LOGISTICA' ? 'var(--danger)' : 'var(--success)'}">
+                            ${u.role === 'LOGISTICA' ? 'Remover Admin' : 'Tornar Logística'}
+                        </button>
+                    </td>
+                    <td> <button onclick="deleteUser(${u.id})" style="background:var(--danger); font-size:11px; margin-left:5px;">Eliminar</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function deleteUser(id) {
+            if (!confirm("AVISO: Esta ação é permanente. Eliminar conta?")) return;
+
+            const res = await fetch('/api/admin/delete-user', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ id: id, adminRole: user.role })
+            });
+
+            if (res.ok) {
+                alert("Conta eliminada.");
+                loadUsers(); // Refresh the list
+            }
+        }
+
+        async function changeRole(id, newRole) {
+            if(!confirm(`Mudar cargo para ${newRole}?`)) return;
+            
+            await fetch('/api/admin/update-role', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ id, role: newRole, adminRole: user.role })
+            });
+            loadUsers();
+        }
+
+        loadUsers();
+    </script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <title>Registo de Membro</title>
+    <link rel ="stylesheet" href="styles.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="/lib/LogoBranco.png">
+</head>
+<body style="display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background-color: var(--bg);">
+    <div class="card" style="width: 100%; max-width: 600px;">
+        <div style="text-align: center; margin-bottom: 24px;">
+            <div style="background-color: var(--primary); display: inline-flex; padding: 12px; border-radius: 12px; box-shadow: 0 4px 10px rgba(26, 115, 232, 0.2);">
+                <img src="/lib/LogoBranco.png" alt="Logo AEFCUP" style="height: 40px; width: auto;">
+            </div>
+            <h2 style="margin-top: 15px;">Criar Conta de Membro</h2>
+            <p style="color: #70757a; font-size: 14px;">Acesso ao Sistema de Logística</p>
+        </div>
+
+        <div class="form-grid">
+            <div>
+                <label for="regName">Nome Completo</label>
+                <input type="text" id="regName" placeholder="Ex: Rodrigo Coelho">
+            </div>
+            
+            <div>
+                <label for="regEmail">E-mail (Login)</label>
+                <input type="email" id="regEmail" placeholder="teste@aefcup.pt">
+            </div>
+
+            <div>
+                <label for="regDept">Departamento</label>
+                <select id="regDept">
+                    <option value="Núcleo de Gestão">Núcleo de Gestão</option>
+                    <option value="Apoio ao Estudante">Apoio ao Estudante</option>
+                    <option value="Desportivo">Desportivo</option>
+                    <option value="Emprego e Formação">Emprego e Formação</option>
+                    <option value="Intervenção Social e Sustentabilidade">Intervenção Social e Sustentabilidade</option>
+                    <option value="Marketing">Marketing</option>
+                    <option value="Recreativo e Cultural">Recreativo e Cultural</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="regPass">Palavra-passe</label>
+                <input type="password" id="regPass" placeholder="password">
+            </div>
+        </div>
+
+        <button onclick="doRegister()" style="width: 100%; margin-top: 10px;">Finalizar Registo</button>
+        
+        <p style="text-align: center; margin-top: 20px; font-size: 14px;">
+            Já tem conta? <a href="/" style="color: var(--primary); text-decoration: none; font-weight: 600;">Entrar aqui</a>
+        </p>
+    </div>
+
+<script>
+        async function doRegister() {
+            const body = {
+                name: document.getElementById('regName').value,
+                email: document.getElementById('regEmail').value,
+                password: document.getElementById('regPass').value,
+                department: document.getElementById('regDept').value
+            };
+
+            const res = await fetch('/api/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+
+            if (res.ok) {
+                alert("Conta criada com sucesso! Agora pode fazer o login.");
+                window.location.href = "/";
+            } else {
+                alert("Erro ao criar conta. Verifique se o email já está em uso.");
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meu Perfil</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/x-icon" href="/lib/LogoBranco.png">
+</head>
+<body>
+    <div class="card" style="max-width: 500px; text-align: center;">
+        <h2>Meu Perfil</h2>
+        
+        <div id="avatarContainer" style="width: 120px; height: 120px; border-radius: 50%; background: var(--primary); margin: 0 auto 20px; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; color: white; font-size: 48px; font-weight: bold; border: 4px solid #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <img id="profilePreview" style="display: none; width: 100%; height: 100%; object-fit: cover;">
+            <span id="photoPlaceholder"></span>
+        </div>
+
+        <div style="margin-bottom: 25px;">
+            <button onclick="document.getElementById('fileInput').click()" style="font-size: 13px; padding: 10px 20px;">Alterar Foto</button>
+            <button onclick="removePhoto()" style="font-size: 13px; padding: 10px 20px; background: var(--danger); margin-left: 5px;">Remover Foto</button>
+            <input type="file" id="fileInput" style="display: none;" accept="image/*" onchange="uploadPhoto(this)">
+        </div>
+
+        <div style="margin-bottom: 30px;">
+            <label>Ou escolha uma cor de fundo:</label>
+            <div id="colorPalette" style="display: flex; justify-content: center; gap: 12px; margin-top: 10px;"></div>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 25px;">
+
+        <div style="text-align: left;">
+            <label>Nome Completo</label>
+            <input type="text" id="profName" placeholder="Seu nome">
+            
+            <label>Email (Não pode ser alterado)</label>
+            <input type="text" id="profEmail" disabled style="background: #f1f3f4; cursor: not-allowed;">
+            
+            <label>Nova Palavra-passe (Opcional)</label>
+            <input type="password" id="profPass" placeholder="Deixe em branco para manter a atual">
+            
+            <button onclick="saveProfile()" style="width: 100%; margin-top: 10px;">Guardar Alterações</button>
+            <button onclick="window.location.href='/dashboard.html'" style="background:#5f6368; width: 100%; margin-top: 8px;">Voltar ao Dashboard</button>
+        </div>
+    </div>
+
+    <script>
+        // 1. Carregar dados do utilizador
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user) window.location.href = "/";
+
+        const colors = ['#1a73e8', '#d93025', '#188038', '#f29900', '#7b1fa2', '#3c4043'];
+
+        // Preencher campos de texto
+        document.getElementById('profName').value = user.name || "";
+        document.getElementById('profEmail').value = user.email || "";
+
+        // 2. Função para atualizar o Avatar na interface
+        function renderAvatar() {
+            const preview = document.getElementById('profilePreview');
+            const placeholder = document.getElementById('photoPlaceholder');
+            const container = document.getElementById('avatarContainer');
+
+            if (user.photo && !user.photo.startsWith('#')) {
+                // É uma imagem carregada
+                preview.src = user.photo;
+                preview.style.display = 'block';
+                placeholder.style.display = 'none';
+                container.style.backgroundColor = 'transparent';
+            } else {
+                // É uma cor ou padrão
+                preview.style.display = 'none';
+                placeholder.style.display = 'block';
+                placeholder.innerText = user.name ? user.name.charAt(0).toUpperCase() : "U";
+                container.style.backgroundColor = user.photo || '#1a73e8';
+            }
+        }
+
+        // 3. Carregamento de Foto
+        async function uploadPhoto(input) {
+            if (!input.files || !input.files[0]) return;
+
+            const formData = new FormData();
+            formData.append("photo", input.files[0]);
+            formData.append("id", user.id);
+
+            try {
+                const res = await fetch('/api/user/upload-photo', { 
+                    method: 'POST', 
+                    body: formData 
+                });
+                
+                if (res.ok) {
+                    const photoPath = await res.text();
+                    user.photo = photoPath; // Caminho retornado pelo Go: /uploads/...
+                    localStorage.setItem('user', JSON.stringify(user));
+                    renderAvatar();
+                    alert("Foto atualizada com sucesso!");
+                } else {
+                    alert("Erro ao carregar a foto.");
+                }
+            } catch (err) {
+                alert("Erro na ligação ao servidor.");
+            }
+        }
+
+        // 4. Remover Foto / Mudar para Cor
+        async function removePhoto(selectedColor = '#1a73e8') {
+            const body = {
+                id: user.id,
+                name: document.getElementById('profName').value,
+                photo: selectedColor // Resetamos para uma cor
+            };
+
+            const res = await fetch('/api/user/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+
+            if (res.ok) {
+                user.photo = selectedColor;
+                user.name = body.name;
+                localStorage.setItem('user', JSON.stringify(user));
+                renderAvatar();
+                if (!selectedColor.startsWith('#')) alert("Foto removida.");
+            }
+        }
+
+        // 5. Guardar Alterações de Nome/Senha
+        async function saveProfile() {
+            const body = {
+                id: user.id,
+                name: document.getElementById('profName').value,
+                password: document.getElementById('profPass').value,
+                photo: user.photo // Mantém a foto/cor atual
+            };
+
+            const res = await fetch('/api/user/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+
+            if (res.ok) {
+                user.name = body.name;
+                localStorage.setItem('user', JSON.stringify(user));
+                alert("Perfil atualizado!");
+                window.location.href = "/dashboard.html";
+            } else {
+                alert("Erro ao atualizar o perfil.");
+            }
+        }
+
+        // Gerar paleta de cores
+        const palette = document.getElementById('colorPalette');
+        colors.forEach(c => {
+            const dot = document.createElement('div');
+            dot.style = `width:30px; height:30px; border-radius:50%; background:${c}; cursor:pointer; border:2px solid white; box-shadow:0 0 5px rgba(0,0,0,0.1);`;
+            dot.onclick = () => removePhoto(c);
+            palette.appendChild(dot);
+        });
+
+        // Inicializar a vista
+        renderAvatar();
+    </script>
+</body>
+</html>
