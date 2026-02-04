@@ -140,7 +140,7 @@ func sendEmailNotification(req Request) {
 
 	subject := "Subject: [AEF CUP] Novo Pedido - " + req.Title + "\n"
 	body := fmt.Sprintf("Olá Logística,\n\nUm novo pedido foi criado por %s:\n\n"+
-		"Evento: %s\nServiço: %s\nDescrição: %s\n\nAcedam ao Dashboard para gerir.",
+		"Evento: %s\nServiço: %s\nDescrição: %s\n\nAcedam ao Dashboard para gerir: https://logistica-aefcup.onrender.com/.",
 		req.Department, req.EventName, req.ServiceType, req.Description)
 
 	auth := smtp.PlainAuth("", from, pass, "smtp.gmail.com")
