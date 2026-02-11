@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marketing - Criar Álbum</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/x-icon" href="/lib/LogoBranco.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1a73e8">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Logística">
+    <link rel="apple-touch-icon" href="/lib/LogoBranco.png">
+    <style>
+        /* ESTILO DOS CAMPOS DE UPLOAD ESTILIZADOS */
+        .upload-zone {
+            position: relative;
+            border-radius: 12px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .upload-zone input[type="file"] {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0; left: 0;
+            opacity: 0;
+            cursor: pointer;
+            z-index: 2;
+        }
+
+        .upload-content {
+            padding: 30px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            pointer-events: none; /* Deixa o clique passar para o input */
+        }
+
+        /* Variação para o Cartaz (Capa) */
+        .zone-cover {
+            background: #f0f7ff;
+            border: 2px dashed #1a73e8;
+            color: #1a73e8;
+        }
+        .zone-cover:hover { background: #e3f2fd; border-color: #1565c0; }
+
+        /* Variação para as restantes fotos */
+        .zone-others {
+            background: #fafafa;
+            border: 1px solid #dadce0;
+            color: #5f6368;
+        }
+        .zone-others:hover { background: #f1f3f4; border-color: #9aa0a6; }
+
+        .file-status {
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px;">
+            <h2 id="welcomeName">Olá...</h2>
+            <div class="user-menu">
+                <div class="avatar-bubble" onclick="toggleMenu()" id="userAvatar">
+                    <span id="userInitial">U</span>
+                </div>
+                <div id="avatarDropdown" class="dropdown-content">
+                    <div style="padding: 10px; border-bottom: 1px solid #eee;">
+                        <strong id="menuName">Nome</strong><br>
+                        <small id="menuDept">Departamento</small>
+                    </div>
+                    <a href="/dashboard.html">🏠 Dashboard</a>
+                    <a href="#" onclick="logout()" style="color: var(--danger);">🚪 Sair</a>
+                </div>
+            </div>
+        </header>
+
+        <section style="max-width: 600px; margin: 0 auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                <h3 style="margin: 0;">📸 Criar Novo Álbum</h3>
+                <button onclick="window.location.href='/dashboard.html'" 
+                        style="background: white; color: #5f6368; border: 1px solid #dadce0; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500;">
+                    ← Voltar
+                </button>
+            </div>
+
+            <label style="font-weight: 600; display: block; margin-bottom: 8px;">Título do Álbum (ex: Gala AEFCUP)</label>
+            <input type="text" id="picTitle" placeholder="Nome do álbum..." style="margin-bottom: 25px;">
+            
+            <label style="font-weight: 600; display: block; margin-bottom: 8px;">🖼️ Cartaz do Evento (Capa)</label>
+            <div class="upload-zone zone-cover" id="coverZone">
+                <input type="file" id="coverFile" accept="image/*" onchange="handleFileChange(this, 'coverStatus', '🖼️ Cartaz selecionado!')">
+                <div class="upload-content">
+                    <span style="font-size: 24px;">📁</span>
+                    <span class="file-status" id="coverStatus">Escolher o cartaz principal...</span>
+                    <small>Esta imagem será o destaque na galeria.</small>
+                </div>
+            </div>
+
+            <div style="height: 25px;"></div>
+
+            <label style="font-weight: 600; display: block; margin-bottom: 8px;">📸 Restantes Fotos do Álbum</label>
+            <div class="upload-zone zone-others" id="othersZone">
+                <input type="file" id="picFiles" accept="image/*" multiple onchange="handleFileChange(this, 'othersStatus', 'fotos selecionadas!')">
+                <div class="upload-content">
+                    <span style="font-size: 24px;">📂</span>
+                    <span class="file-status" id="othersStatus">Selecionar múltiplas fotos...</span>
+                    <small>Podes selecionar várias de uma vez.</small>
+                </div>
+            </div>
+            
+            <button onclick="uploadFoto()" id="btnUpload" style="width: 100%; padding: 15px; font-size: 16px; margin-top: 35px;">Publicar Álbum Completo</button>
+        </section>
+    </div>
+
+    <script>
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user) window.location.href = "/";
+
+        document.getElementById('welcomeName').innerText = `Olá, ${user.name}`;
+        document.getElementById('menuName').innerText = user.name;
+        document.getElementById('menuDept').innerText = user.department;
+        updateAvatar();
+
+        // FUNÇÃO PARA ATUALIZAR O VISUAL AO SELECIONAR FICHEIROS
+        function handleFileChange(input, statusId, successMsg) {
+            const statusLabel = document.getElementById(statusId);
+            if (input.files.length > 0) {
+                if (input.multiple) {
+                    statusLabel.innerText = `✅ ${input.files.length} ${successMsg}`;
+                } else {
+                    statusLabel.innerText = `✅ ${successMsg}`;
+                }
+                input.parentElement.style.borderColor = "#188038";
+                input.parentElement.style.backgroundColor = "#e6f4ea";
+            }
+        }
+
+        async function uploadFoto() {
+            const btn = document.getElementById('btnUpload');
+            const coverFile = document.getElementById('coverFile').files[0];
+            const otherFiles = document.getElementById('picFiles').files;
+            const title = document.getElementById('picTitle').value;
+
+            if (!coverFile || otherFiles.length === 0 || !title) {
+                return alert("Preenche todos os campos antes de publicar!");
+            }
+
+            btn.innerText = "A publicar álbum...";
+            btn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('title', title);
+            formData.append('department', user.department);
+            formData.append('cover', coverFile);
+            for (let i = 0; i < otherFiles.length; i++) {
+                formData.append('images', otherFiles[i]);
+            }
+
+            try {
+                const res = await fetch('/api/gallery/upload', { method: 'POST', body: formData });
+                if (res.ok) {
+                    alert("Álbum publicado com sucesso!");
+                    window.location.href = '/dashboard.html';
+                } else {
+                    alert("Erro no upload.");
+                }
+            } catch (err) {
+                console.error(err);
+            } finally {
+                btn.innerText = "Publicar Álbum Completo";
+                btn.disabled = false;
+            }
+        }
+
+        function updateAvatar() {
+            const bubble = document.getElementById('userAvatar');
+            if (user.photo && !user.photo.startsWith('#')) {
+                bubble.innerHTML = `<img src="${user.photo}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
+            } else {
+                bubble.style.backgroundColor = user.photo || 'var(--primary)';
+                bubble.innerHTML = `<span>${user.name.charAt(0).toUpperCase()}</span>`;
+            }
+        }
+        function toggleMenu() { document.getElementById("avatarDropdown").classList.toggle("show"); }
+        function logout() { localStorage.clear(); window.location.href = "/"; }
+    </script>
+</body>
+</html>

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Galeria - AEFCUP</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/x-icon" href="/lib/LogoBranco.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1a73e8">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Logística">
+    <link rel="apple-touch-icon" href="/lib/LogoBranco.png">
+    
+    <style>
+        /* ESTILIZAÇÃO DOS INPUTS DE FICHEIRO */
+        .file-upload-wrapper {
+            position: relative;
+            margin-bottom: 15px;
+        }
+
+        /* Escondemos o input real mas mantemos funcional */
+        .file-upload-wrapper input[type="file"] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        /* Criamos a aparência de botão personalizado */
+        .custom-file-upload {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 12px;
+            background: #f8f9fa;
+            border: 2px dashed #dadce0;
+            border-radius: 8px;
+            color: #5f6368;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .file-upload-wrapper:hover .custom-file-upload {
+            border-color: var(--primary);
+            background: #e8f0fe;
+            color: var(--primary);
+        }
+
+        /* Estilo do Botão Voltar */
+        .btn-voltar {
+            background: white;
+            color: #5f6368;
+            border: 1px solid #dadce0;
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* Grelha de fotos no modal */
+        .photo-edit-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            gap: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 15px;
+            background: #f1f3f4;
+            border-radius: 8px;
+        }
+
+        .photo-item { position: relative; aspect-ratio: 1; }
+        .photo-item img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; }
+
+        /* Botão X (Círculo Perfeito) */
+        .del-photo-btn {
+            position: absolute; top: 5px; right: 5px;
+            background: #d93025; color: white; border: none;
+            width: 24px !important; height: 24px !important;
+            padding: 0 !important; border-radius: 50% !important;
+            cursor: pointer; display: flex !important;
+            align-items: center; justify-content: center;
+            font-size: 14px; line-height: 1; z-index: 10;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px;">
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <button class="btn-voltar" onclick="window.location.href='/dashboard.html'">← Voltar</button>
+                <div>
+                    <h2 style="margin:0;">⚙️ Gestão de Galeria</h2>
+                    <small style="color: #5f6368;">Administração de Conteúdo</small>
+                </div>
+            </div>
+            
+            <div class="user-menu">
+                <div class="avatar-bubble" onclick="toggleMenu()" id="userAvatar"><span>M</span></div>
+                <div id="avatarDropdown" class="dropdown-content">
+                    <a href="/dashboard.html">🏠 Dashboard</a>
+                    <a href="#" onclick="logout()" style="color: var(--danger);">🚪 Sair</a>
+                </div>
+            </div>
+        </header>
+
+        <section>
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 20px;">
+                <h3 style="margin:0;">Álbuns Ativos</h3>
+                <button onclick="window.location.href='/upload-galeria.html'">+ Novo Álbum</button>
+            </div>
+            <div id="adminGalleryGrid" class="form-grid"></div>
+        </section>
+    </div>
+
+    <div id="editModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <span class="close" onclick="closeEdit()">&times;</span>
+            <h3 id="editTitle" style="margin-bottom: 25px;">Editar Álbum</h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1.6fr; gap: 30px;">
+                <div style="background: #fafafa; padding: 20px; border-radius: 12px; border: 1px solid #eee;">
+                    <label style="font-weight: 600; color: var(--primary); display: block; margin-bottom: 15px;">➕ Adicionar Fotos</label>
+                    
+                    <div class="file-upload-wrapper">
+                        <div class="custom-file-upload" id="fileLabel">
+                            <span>📁 Escolher imagens...</span>
+                        </div>
+                        <input type="file" id="extraPhotos" multiple accept="image/*" onchange="updateFileName()">
+                    </div>
+
+                    <button onclick="uploadExtra()" id="btnUpload" style="width: 100%; margin-top: 10px;">Publicar Fotos</button>
+                </div>
+
+                <div>
+                    <label style="font-weight: 600; display: block; margin-bottom: 15px;">🖼️ Fotos no Álbum</label>
+                    <div id="photoEditorGrid" class="photo-edit-grid"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        let currentEditingTitle = "";
+
+        // Mostra o nome dos ficheiros selecionados
+        function updateFileName() {
+            const input = document.getElementById('extraPhotos');
+            const label = document.getElementById('fileLabel');
+            if (input.files.length > 0) {
+                label.innerHTML = `<span>✅ ${input.files.length} fotos selecionadas</span>`;
+                label.style.borderColor = "var(--primary)";
+                label.style.color = "var(--primary)";
+            }
+        }
+
+        async function loadAdminGallery() {
+            const res = await fetch('/api/gallery/admin-list');
+            const photos = await res.json();
+            const albums = photos.reduce((acc, p) => {
+                if (!acc[p.title]) acc[p.title] = { count: 0, thumb: p.url };
+                if (p.is_cover) acc[p.title].thumb = p.url;
+                acc[p.title].count++;
+                return acc;
+            }, {});
+
+            document.getElementById('adminGalleryGrid').innerHTML = Object.entries(albums).map(([title, data]) => `
+                <div class="card" style="padding:15px; border:1px solid #eee; display:flex; flex-direction:column; gap:10px;">
+                    <img src="${data.thumb}" style="height:150px; width:100%; object-fit:cover; border-radius:8px; background:#000;">
+                    <h4 style="margin:0;">${title}</h4>
+                    <small style="color:#666;">${data.count} Fotos</small>
+                    <div style="display:flex; gap:8px;">
+                        <button onclick="openEdit('${title}')" style="flex:1; padding:8px;">Gerir</button>
+                        <button onclick="deleteAlbum('${title}')" style="background:var(--danger); padding:8px 12px;">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ... Resto das funções (openEdit, deleteSinglePhoto, uploadExtra, deleteAlbum) mantêm-se iguais
+
+        async function openEdit(title) {
+            currentEditingTitle = title;
+            document.getElementById('editTitle').innerText = "Editar: " + title;
+            const res = await fetch('/api/gallery/admin-list');
+            const data = await res.json();
+            const albumPhotos = data.filter(p => p.title === title);
+
+            document.getElementById('photoEditorGrid').innerHTML = albumPhotos.map(p => `
+                <div class="photo-item">
+                    <img src="${p.url}">
+                    <button class="del-photo-btn" onclick="deleteSinglePhoto('${p.url}')">&times;</button>
+                </div>
+            `).join('');
+            document.getElementById('editModal').style.display = 'block';
+        }
+
+        async function deleteSinglePhoto(url) {
+            if (!confirm("Remover esta foto?")) return;
+            const res = await fetch(`/api/gallery/delete-photo?url=${encodeURIComponent(url)}`, { method: 'DELETE' });
+            if (res.ok) openEdit(currentEditingTitle);
+        }
+
+        async function uploadExtra() {
+            const files = document.getElementById('extraPhotos').files;
+            if (files.length === 0) return alert("Selecione ficheiros.");
+            const btn = document.getElementById('btnUpload');
+            btn.disabled = true; btn.innerText = "Enviando...";
+
+            const formData = new FormData();
+            formData.append('title', currentEditingTitle);
+            formData.append('department', 'Marketing');
+            for (let i = 0; i < files.length; i++) formData.append('images', files[i]);
+
+            const res = await fetch('/api/gallery/add-photos', { method: 'POST', body: formData });
+            if (res.ok) {
+                document.getElementById('extraPhotos').value = "";
+                document.getElementById('fileLabel').innerHTML = `<span>📁 Escolher imagens...</span>`;
+                openEdit(currentEditingTitle);
+            }
+            btn.disabled = false; btn.innerText = "Publicar Fotos";
+        }
+
+        async function deleteAlbum(title) {
+            if(!confirm(`Eliminar o álbum "${title}"?`)) return;
+            const res = await fetch(`/api/gallery/delete?title=${encodeURIComponent(title)}`, { method: 'DELETE' });
+            if(res.ok) loadAdminGallery();
+        }
+
+        function toggleMenu() { document.getElementById("avatarDropdown").classList.toggle("show"); }
+        function closeEdit() { document.getElementById('editModal').style.display = 'none'; loadAdminGallery(); }
+        function logout() { localStorage.clear(); window.location.href = '/'; }
+
+        loadAdminGallery();
+    </script>
+</body>
+</html>

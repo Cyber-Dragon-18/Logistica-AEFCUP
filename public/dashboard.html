@@ -5,8 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Logistica AEFCUP</title>
     <link rel="stylesheet" href="styles.css">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/x-icon" href="/lib/LogoBranco.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#1a73e8">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Logística">
+    <link rel="apple-touch-icon" href="/lib/LogoBranco.png">
+    <style>
+        /* Novos estilos para os cards de Marketing */
+        .mkt-card:hover { transform: translateY(-8px); box-shadow: 0 12px 25px rgba(0,0,0,0.1) !important; border-color: var(--primary) !important; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .mkt-container { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; padding: 0 20px; }
+        @media (max-width: 600px) { .mkt-container { grid-template-columns: 1fr; } }
+        @media (max-width: 600px) {
+            .mkt-container {
+                grid-template-columns: 1fr; /* Coluna única em telemóveis */
+                gap: 15px;
+            }
+            
+            .mkt-card {
+                padding: 25px !important; /* Menos padding para ganhar espaço vertical */
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="card">
@@ -30,8 +52,40 @@
                 </div>
             </div>
         </header>
+
+        <div id="marketingArea" style="display: none; margin: 60px auto; max-width: 800px; animation: fadeIn 0.5s ease;">
+            <h2 style="text-align: center; color: #202124; margin-bottom: 40px; font-weight: 500;">O que pretendes fazer hoje?</h2>
+            <div class="mkt-container">
+                <div onclick="showMktRequests()" class="mkt-card" style="background: white; padding: 40px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.3s ease; border: 1px solid #eee; text-align: center;">
+                    <div style="font-size: 40px; margin-bottom: 15px;">📋</div>
+                    <h3 style="color: var(--primary); margin: 0;">Fazer Requisição</h3>
+                    <p style="color: #70757a; font-size: 14px; margin-top: 10px;">Criar novo pedido de logística para eventos.</p>
+                </div>
+                <div onclick="window.location.href='/upload-galeria.html'" class="mkt-card" style="background: white; padding: 40px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.3s ease; border: 1px solid #eee; text-align: center;">
+                    <div style="font-size: 40px; margin-bottom: 15px;">📸</div>
+                    <h3 style="color: #28a745; margin: 0;">Upload Galeria</h3>
+                    <p style="color: #70757a; font-size: 14px; margin-top: 10px;">Adicionar novas fotos à galeria pública.</p>
+                </div>
+                <div onclick="window.location.href='/gestao-galeria.html'" class="mkt-card" style="background: white; padding: 40px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.3s ease; border: 1px solid #eee; text-align: center;">
+                    <div style="font-size: 40px; margin-bottom: 15px;">⚙️</div>
+                    <h3 style="color: #5f6368; margin: 0;">Gerir Galeria</h3>
+                    <p style="color: #70757a; font-size: 14px; margin-top: 10px;">Visualizar, organizar e apagar álbuns antigos.</p>
+                </div>
+                <div onclick="openPublicGallery()" class="mkt-card" style="background: white; padding: 40px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.3s ease; border: 1px solid #eee; text-align: center;">
+                    <div style="font-size: 40px; margin-bottom: 15px;">🌐</div>
+                    <h3 style="color: #1a73e8; margin: 0;">Ver Galeria Pública</h3>
+                    <p style="color: #70757a; font-size: 14px; margin-top: 10px;">Abrir a galeria como os sócios a veem.</p>
+                </div>
+            </div>
+        </div>
+
         <section id="coordArea" style="display: none; border-bottom: 2px solid #f1f3f4; padding-bottom: 30px; margin-bottom: 30px;">
-            <h3>Novo Pedido de Logística</h3>
+            <div id="mktBackHeader" style="display: none; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0;">Novo Pedido de Logística</h3>
+                <button onclick="backToMktMenu()" style="background: none; color: #5f6368; border: 1px solid #dadce0; padding: 8px 16px; font-size: 13px; border-radius: 8px; cursor: pointer;">← Voltar ao Menu</button>
+            </div>
+            <h3 id="standardCoordTitle">Novo Pedido de Logística</h3>
+            
             <p style="font-size: 13px; color: #1a73e8; margin-top: -10px;">
                 Departamento: <strong id="autoDept">---</strong>
             </p>
@@ -45,22 +99,13 @@
                         <option value="Marcação de Turnos">Marcação de Turnos</option>
                     </select>
                 </div>
-                <div>
-                    <label>Nome do Evento</label>
-                    <input type="text" id="evName" placeholder="Ex: Gala AEF CUP">
-                </div>
-                <div>
-                    <label>Data do Evento</label>
-                    <input type="date" id="evDate">
-                </div>
-                <div>
-                    <label>Título Curto</label>
-                    <input type="text" id="title" placeholder="Ex: Requisição de Som">
-                </div>
+                <div><label>Nome do Evento</label><input type="text" id="evName" placeholder="Ex: Gala AEF CUP"></div>
+                <div><label>Data do Evento</label><input type="date" id="evDate"></div>
+                <div><label>Título Curto</label><input type="text" id="title" placeholder="Ex: Requisição de Som"></div>
             </div>
 
-            <label>Informações Relativas ao Evento (Descrição)</label>
-            <textarea id="desc" rows="3" placeholder="Descreva detalhadamente o que é necessário..."></textarea>
+            <label>Descrição</label>
+            <textarea id="desc" rows="3" placeholder="Descreva o que é necessário..."></textarea>
             
             <label>Observações</label>
             <textarea id="obs" rows="2" placeholder="Notas adicionais..."></textarea>
@@ -83,11 +128,9 @@
                     <h2 id="statCompleted" style="margin: 10px 0; color: #188038;">0</h2>
                 </div>
             </div>
-
             <div class="card" style="padding: 20px;">
                 <h3 style="margin-top: 0; font-size: 16px;">Distribuição por Departamento</h3>
-                <div id="deptStatsList" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
-                    </div>
+                <div id="deptStatsList" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;"></div>
             </div>
         </section>
 
@@ -95,77 +138,48 @@
             <label style="font-weight: bold; margin-right: 10px;">🔍 Filtrar por Departamento:</label>
             <select id="deptFilter" onchange="filterData()" style="width: auto; margin: 0;">
                 <option value="ALL">Todos os Departamentos</option>
-                <option value="Núcleo de Gestão">Núcleo de Gestão</option>
-                <option value="Apoio ao Estudante">Apoio ao Estudante</option>
-                <option value="Desportivo">Desportivo</option>
-                <option value="Emprego e Formação">Emprego e Formação</option>
-                <option value="Intervenção Social e Sustentabilidade">Intervenção Social e Sustentabilidade</option>
                 <option value="Marketing">Marketing</option>
-                <option value="Recreativo e Cultural">Recreativo e Cultural</option>
+                <option value="Desportivo">Desportivo</option>
             </select>
         </div>
 
-        <h3>Histórico de Pedidos</h3>
-        <div class="table-container">
+        <h3 id="historyTitle">Histórico de Pedidos</h3>
+        <div class="table-container" id="historyTableContainer">
             <table>
-                <thead>
-                    <tr>
-                        <th>Dept</th>
-                        <th>Pedido</th>
-                        <th>Evento</th>
-                        <th>Estado</th>
-                        <th>Ação</th>
-                    </tr>
-                </thead>
+                <thead><tr><th>Dept</th><th>Pedido</th><th>Evento</th><th>Estado</th><th>Ação</th></tr></thead>
                 <tbody id="reqTable"></tbody>
             </table>
         </div>
     </div>
 
     <div id="detailsModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
-        <div style="background:white; margin:10% auto; padding:30px; border-radius:12px; max-width:600px; position:relative; box-shadow: 0 5px 15px rgba(0,0,0,0.3);">
-            <span onclick="closeModal()" style="position:absolute; right:20px; top:15px; cursor:pointer; font-size:24px; font-weight:bold;">&times;</span>
-            <h2 id="mTitle" style="margin-top:0; color:#1a73e8;">Detalhes do Pedido</h2>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
-                <p><strong>Evento:</strong> <span id="mEvent"></span></p>
-                <p><strong>Data:</strong> <span id="mDate"></span></p>
-                <p><strong>Tipo:</strong> <span id="mType"></span></p>
-            </div>
-            <hr style="border:0; border-top:1px solid #eee;">
-            <p><strong>Progresso:</strong></p>
-            <div style="background: #e8eaed; border-radius: 10px; height: 10px; width: 100%; margin-bottom: 20px;">
-                <div id="mProgress" style="background: #188038; height: 100%; border-radius: 10px; width: 0%; transition: width 0.5s;"></div>
-            </div>
+        <div style="background:white; margin:10% auto; padding:30px; border-radius:12px; max-width:600px; position:relative;">
+            <span onclick="closeModal()" style="position:absolute; right:20px; top:15px; cursor:pointer; font-size:24px;">&times;</span>
+            <h2 id="mTitle">Detalhes</h2>
+            <p><strong>Evento:</strong> <span id="mEvent"></span></p>
+            <p><strong>Data:</strong> <span id="mDate"></span></p>
             <p><strong>Descrição:</strong></p>
-            <div id="mDesc" style="background:#f9f9f9; padding:15px; border-radius:8px; margin-bottom:15px; font-size:14px; line-height:1.5;"></div>
-            <p><strong>Observações:</strong></p>
-            <p id="mObs" style="font-style:italic; color:#555; background:#fffbe6; padding:10px; border-radius:8px; border-left:4px solid #ffe58f;"></p>
-            <button onclick="closeModal()" style="width:100%; margin-top:15px; background:#5f6368;">Fechar</button>
+            <div id="mDesc" style="background:#f9f9f9; padding:15px; border-radius:8px; font-size:14px;"></div>
+            <button onclick="closeModal()" style="width:100%; margin-top:20px; background:#5f6368;">Fechar</button>
         </div>
     </div>
 
 <script>
-    // 1. SESSION & UI INITIALIZATION
     const userData = localStorage.getItem('user');
     if (!userData) window.location.href = "/";
     const user = JSON.parse(userData);
     let allReqs = [];
 
     if (user) {
-        // Update Basic Info
         document.getElementById('welcomeName').innerText = `Olá, ${user.name}`;
         document.getElementById('menuName').innerText = user.name;
         document.getElementById('menuDept').innerText = user.department;
-        
-        // Handle Profile Bubble View
         updateAvatar();
 
-        // Role-based visibility and Admin Link insertion
         if (user.role === 'LOGISTICA') {
             document.getElementById('statsArea').style.display = 'flex';
             document.getElementById('logisticsFilter').style.display = 'block';
-
-            // INSERT ADMIN LINK IN DROPDOWN
+            
             const dropdown = document.getElementById('avatarDropdown');
             if (dropdown && !document.getElementById('adminLink')) {
                 const adminLink = document.createElement('a');
@@ -177,149 +191,87 @@
                 dropdown.prepend(adminLink); 
             }
         } else {
-            document.getElementById('coordArea').style.display = 'block';
+            if (user.department === 'Marketing') {
+                document.getElementById('marketingArea').style.display = 'block';
+                document.getElementById('coordArea').style.display = 'none';
+                toggleMarketingElements(false);
+            } else {
+                document.getElementById('coordArea').style.display = 'block';
+            }
             document.getElementById('autoDept').innerText = user.department;
         }
     }
 
-    // 2. DATA LOADING
+    // FUNÇÕES DE MARKETING
+    function showMktRequests() {
+        document.getElementById('marketingArea').style.display = 'none';
+        document.getElementById('coordArea').style.display = 'block';
+        document.getElementById('mktBackHeader').style.display = 'flex';
+        document.getElementById('standardCoordTitle').style.display = 'none';
+        toggleMarketingElements(true);
+    }
+
+    function backToMktMenu() {
+        document.getElementById('marketingArea').style.display = 'block';
+        document.getElementById('coordArea').style.display = 'none';
+        toggleMarketingElements(false);
+    }
+
+    function toggleMarketingElements(show) {
+        const val = show ? 'block' : 'none';
+        document.getElementById('historyTitle').style.display = val;
+        document.getElementById('historyTableContainer').style.display = val;
+    }
+
+    // LÓGICA DE DADOS ORIGINAL
     async function load() {
-        try {
-            const r = await fetch(`/api/requests/list?userId=${user.id}&role=${user.role}`);
-            allReqs = await r.json();
-            updateStats(allReqs);
-            filterData();
-        } catch (err) {
-            console.error("Erro ao carregar dados:", err);
-        }
-    }
-
-    // 3. STATISTICS & FILTERING
-    function updateStats(data) {
-        if (user.role !== 'LOGISTICA') return;
-        const stats = { PENDING: 0, ACCEPTED: 0, COMPLETED: 0 };
-        const depts = {};
-
-        data.forEach(req => {
-            if (stats[req.status] !== undefined) stats[req.status]++;
-            depts[req.department] = (depts[req.department] || 0) + 1;
-        });
-
-        document.getElementById('statPending').innerText = stats.PENDING;
-        document.getElementById('statAccepted').innerText = stats.ACCEPTED;
-        document.getElementById('statCompleted').innerText = stats.COMPLETED;
-
-        const list = document.getElementById('deptStatsList');
-        if (list) {
-            list.innerHTML = Object.entries(depts).map(([name, count]) => `
-                <div style="background: white; padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; border: 1px solid #eee;">
-                    <span style="font-size:13px;">${name}</span><b>${count}</b>
-                </div>`).join('');
-        }
-    }
-
-    function filterData() {
-        const filterEl = document.getElementById('deptFilter');
-        const filterVal = filterEl ? filterEl.value : "ALL";
-        const data = filterVal === "ALL" ? allReqs : allReqs.filter(r => r.department === filterVal);
-        renderTable(data);
+        const r = await fetch(`/api/requests/list?userId=${user.id}&role=${user.role}`);
+        allReqs = await r.json();
+        updateStats(allReqs);
+        filterData();
     }
 
     function renderTable(data) {
-        const table = document.getElementById('reqTable');
-        table.innerHTML = data.map(i => {
-            let actionBtn = '-';
-            if (user.role === 'LOGISTICA') {
-                if (i.status === 'PENDING') {
-                    actionBtn = `<button onclick="upd(${i.id},'ACCEPTED')" style="background:var(--primary); font-size:11px;">Aceitar</button>`;
-                } else if (i.status === 'ACCEPTED') {
-                    actionBtn = `<button onclick="upd(${i.id},'COMPLETED')" style="background:var(--success); font-size:11px;">Concluir</button>`;
-                }
-            }
-            return `<tr>
+        document.getElementById('reqTable').innerHTML = data.map(i => `
+            <tr>
                 <td><strong>${i.department}</strong></td>
                 <td>${i.title}</td>
-                <td>${i.eventName || 'N/A'}<br><small>${i.eventDate || ''}</small></td>
+                <td>${i.eventName || 'N/A'}</td>
                 <td><span class="status status-${i.status.toLowerCase()}">${i.status}</span></td>
-                <td>
-                    <button onclick='viewDetails(${JSON.stringify(i)})' style="background:#5f6368; font-size:11px; margin-right:5px;">Info</button>
-                    ${actionBtn}
-                </td>
-            </tr>`;
-        }).join('');
+                <td><button onclick='viewDetails(${JSON.stringify(i)})' style="background:#5f6368;">Info</button></td>
+            </tr>`).join('');
     }
 
-    // 4. ACTIONS: SUBMIT & UPDATE
-    async function submitReq() {
-        const body = {
-            title: document.getElementById('title').value,
-            description: document.getElementById('desc').value,
-            authorId: user.id,
-            department: user.department,
-            serviceType: document.getElementById('service').value,
-            eventName: document.getElementById('evName').value,
-            eventDate: document.getElementById('evDate').value,
-            observations: document.getElementById('obs').value
-        };
-        await fetch('/api/requests', { 
-            method: 'POST', 
-            headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify(body) 
-        });
-        document.querySelectorAll('#coordArea input, #coordArea textarea').forEach(el => el.value = "");
-        load();
+    function updateStats(data) {
+        if (user.role !== 'LOGISTICA') return;
+        const s = { PENDING: 0, ACCEPTED: 0, COMPLETED: 0 };
+        data.forEach(r => { if(s[r.status] !== undefined) s[r.status]++; });
+        document.getElementById('statPending').innerText = s.PENDING;
+        document.getElementById('statAccepted').innerText = s.ACCEPTED;
+        document.getElementById('statCompleted').innerText = s.COMPLETED;
     }
 
-    async function upd(id, status) {
-        await fetch('/api/requests/update', { 
-            method: 'POST', 
-            headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({id, status, role: user.role}) 
-        });
-        load();
+    function filterData() {
+        const val = document.getElementById('deptFilter')?.value || "ALL";
+        renderTable(val === "ALL" ? allReqs : allReqs.filter(r => r.department === val));
     }
-
-    // 5. MODAL & UI UTILS
-    function viewDetails(req) {
-        document.getElementById('mTitle').innerText = req.title;
-        document.getElementById('mEvent').innerText = req.eventName || "N/A";
-        document.getElementById('mDate').innerText = req.eventDate || "---";
-        document.getElementById('mType').innerText = req.serviceType;
-        document.getElementById('mDesc').innerText = req.description;
-        document.getElementById('mObs').innerText = req.observations || "Sem observações.";
-        
-        const prog = document.getElementById('mProgress');
-        prog.style.width = req.status === 'PENDING' ? "10%" : req.status === 'ACCEPTED' ? "50%" : "100%";
-        document.getElementById('detailsModal').style.display = "block";
-    }
-
-    function closeModal() { document.getElementById('detailsModal').style.display = "none"; }
-    
-    function toggleMenu() { document.getElementById("avatarDropdown").classList.toggle("show"); }
 
     function updateAvatar() {
         const bubble = document.getElementById('userAvatar');
         if (user.photo && !user.photo.startsWith('#')) {
-            // Display Uploaded Photo
-            bubble.style.backgroundColor = 'transparent';
-            bubble.innerHTML = `<img src="${user.photo}" style="width:100%; height:100%; object-fit:cover;" onerror="this.src=''; this.parentElement.style.backgroundColor='var(--primary)'; this.parentElement.innerHTML='<span id=\'userInitial\'>${user.name.charAt(0).toUpperCase()}</span>';">`;
+            bubble.innerHTML = `<img src="${user.photo}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
         } else {
-            // Display Color Circle with Initial
             bubble.style.backgroundColor = user.photo || 'var(--primary)';
-            bubble.innerHTML = `<span id="userInitial">${user.name.charAt(0).toUpperCase()}</span>`;
+            bubble.innerHTML = `<span>${user.name.charAt(0).toUpperCase()}</span>`;
         }
     }
 
-    // Event Listeners
-    window.onclick = function(event) {
-        if (!event.target.matches('.avatar-bubble') && !event.target.matches('#userInitial')) {
-            document.getElementById("avatarDropdown")?.classList.remove('show');
-        }
-        if (event.target == document.getElementById('detailsModal')) closeModal();
-    }
-
+    function toggleMenu() { document.getElementById("avatarDropdown").classList.toggle("show"); }
     function logout() { localStorage.clear(); window.location.href = "/"; }
-
+    function openPublicGallery() {
+        const secretToken = "aefcup-galeria-2026-xyz";
+        window.open(`/galeria.html?token=${secretToken}`, '_blank');
+    }
     load();
 </script>
 </body>

@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galeria de Eventos - AEFCUP</title>
+    <link rel="icon" type="image/x-icon" href="/lib/LogoBranco.png">
+    <meta name="theme-color" content="#000000"> 
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<style>
+
+body {
+    margin: 0;
+    font-family: 'Inter', system-ui, sans-serif;
+    background: radial-gradient(circle at 30% 20%, #1f2937 0%, #0f172a 40%, #000000 100%);
+    color: white;
+}
+
+/* HEADER */
+.public-header {
+    padding: 60px 20px 40px;
+    text-align: center;
+}
+
+.logo-img {
+    height: 80px;
+    margin-bottom: 20px;
+}
+
+.main-title {
+    margin: 0;
+    font-size: 48px;
+    font-weight: 900;
+    letter-spacing: -1px;
+    background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.subtitle {
+    color: #94a3b8;
+    margin-top: 10px;
+}
+
+/* GALERIA */
+.gallery-grid { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); 
+    gap: 40px; 
+    padding: 40px 30px 80px; 
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.album-card { 
+    background: rgba(255,255,255,0.04);
+    border-radius: 20px; 
+    overflow: hidden; 
+    backdrop-filter: blur(10px);
+    cursor: pointer; 
+    transition: all 0.4s ease;
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+.album-card:hover {
+    transform: translateY(-8px);
+    border-color: rgba(255,255,255,0.2);
+}
+
+.cartaz-img-full { 
+    width: 100%; 
+    height: 250px;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+}
+
+.album-card:hover .cartaz-img-full {
+    transform: scale(1.05);
+}
+
+.album-info { padding: 20px; }
+
+.album-info h3 {
+    margin: 0;
+    font-size: 20px;
+}
+
+.album-info small {
+    color: #94a3b8;
+}
+
+/* MODAL */
+#albumModal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    backdrop-filter: blur(15px);
+    z-index: 9999;
+    overflow-y: auto;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+}
+
+#albumModal.show {
+    opacity: 1;
+}
+
+.modal-content-wrapper {
+    padding: 120px 40px 60px;
+}
+
+#modalTitle {
+    text-align: center;
+    font-size: 42px;
+    margin-bottom: 50px;
+    font-weight: 900;
+}
+
+.thumb-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.thumb-item {
+    overflow: hidden;
+    border-radius: 14px;
+}
+
+.thumb-item img {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    transition: transform 0.4s ease, opacity 0.4s ease;
+    cursor: pointer;
+}
+
+.thumb-item:hover img {
+    transform: scale(1.08);
+    opacity: 0.85;
+}
+
+/* BOTÃO FECHAR */
+.close-modal-x {
+    display: none; /* começa escondido */
+    position: fixed;
+    top: 25px;
+    right: 30px;
+    font-size: 45px;
+    cursor: pointer;
+    z-index: 20000;
+    width: 55px;
+    height: 55px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(10px);
+    align-items: center;
+    justify-content: center;
+    transition: all 0.25s ease;
+}
+
+
+.close-modal-x:hover {
+    background: rgba(255,255,255,0.2);
+    transform: rotate(90deg);
+}
+
+/* LIGHTBOX */
+#lightboxOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.95);
+    z-index: 11000;
+    justify-content: center;
+    align-items: center;
+}
+
+#lightboxImg {
+    max-width: 90%;
+    max-height: 85vh;
+    border-radius: 16px;
+}
+
+.nav-btn {
+    position: absolute;
+    top: 50%;
+    font-size: 60px;
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 20px;
+}
+
+.close-btn {
+    position: fixed;
+    top: 20px;
+    right: 30px;
+    font-size: 45px;
+    cursor: pointer;
+}
+
+</style>
+</head>
+
+<body>
+
+<header class="public-header">
+    <img src="/lib/LogoBranco.png" class="logo-img">
+    <h1 class="main-title">Momentos AEFCUP</h1>
+    <p class="subtitle">Memórias das nossas atividades, eventos e iniciativas</p>
+</header>
+
+<div id="gallery" class="gallery-grid"></div>
+
+<span class="close-modal-x" onclick="closeAlbum()">&times;</span>
+
+<div id="albumModal">
+    <div class="modal-content-wrapper">
+        <h2 id="modalTitle"></h2>
+        <div id="modalGrid" class="thumb-grid"></div>
+    </div>
+</div>
+
+<div id="lightboxOverlay" onclick="closeLightbox()">
+    <span class="close-btn" onclick="closeLightbox()">&times;</span>
+    <button class="nav-btn" style="left:20px;" onclick="changePhoto(-1, event)">&#10094;</button>
+    <img id="lightboxImg">
+    <button class="nav-btn" style="right:20px;" onclick="changePhoto(1, event)">&#10095;</button>
+</div>
+
+<script>
+
+let currentAlbums = {}; 
+let activePhotos = [];
+let currentIndex = 0;
+
+async function loadGallery() {
+    const params = new URLSearchParams(window.location.search);
+    const res = await fetch(`/api/gallery/public?token=${params.get('token')}`);
+    const data = await res.json();
+
+    currentAlbums = data.reduce((acc, p) => {
+        if (!acc[p.title]) acc[p.title] = { photos: [], cover: "" };
+        const isCover = p.is_cover === true || String(p.is_cover).toLowerCase() === "true" || p.is_cover === 1;
+        if (isCover) acc[p.title].cover = p.url;
+        else acc[p.title].photos.push(p.url);
+        return acc;
+    }, {});
+
+    const container = document.getElementById('gallery');
+    container.innerHTML = Object.entries(currentAlbums).map(([title, album]) => `
+        <div class="album-card" onclick="viewAlbum('${title}')">
+            <img src="${album.cover || album.photos[0]}" class="cartaz-img-full">
+            <div class="album-info">
+                <h3>${title}</h3>
+                <small>${album.photos.length} Fotografias</small>
+            </div>
+        </div>
+    `).join('');
+}
+
+function viewAlbum(title) {
+    activePhotos = currentAlbums[title].photos;
+    document.getElementById('modalTitle').innerText = title;
+    document.getElementById('modalGrid').innerHTML = activePhotos.map((url, i) => `
+        <div class="thumb-item" onclick="openLightbox(${i})">
+            <img src="${url}">
+        </div>
+    `).join('');
+
+    const modal = document.getElementById('albumModal');
+    modal.style.display = 'block';
+    setTimeout(() => modal.classList.add('show'), 10);
+
+    document.querySelector('.close-modal-x').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeAlbum() {
+    const modal = document.getElementById('albumModal');
+    modal.classList.remove('show');
+    setTimeout(() => modal.style.display = 'none', 300);
+
+    document.querySelector('.close-modal-x').style.display = 'none';
+    document.body.style.overflow = 'auto';
+}
+
+function openLightbox(index) {
+    currentIndex = index;
+    document.querySelector('.close-modal-x').style.display = 'none';
+    document.getElementById('lightboxOverlay').style.display = 'flex';
+    document.getElementById('lightboxImg').src = activePhotos[currentIndex];
+}
+
+function closeLightbox() {
+    document.getElementById('lightboxOverlay').style.display = 'none';
+    document.querySelector('.close-modal-x').style.display = 'flex';
+}
+
+function changePhoto(dir, e) {
+    if (e) e.stopPropagation();
+    currentIndex = (currentIndex + dir + activePhotos.length) % activePhotos.length;
+    document.getElementById('lightboxImg').src = activePhotos[currentIndex];
+}
+
+document.addEventListener('keydown', (e) => {
+    if (document.getElementById('lightboxOverlay').style.display === 'flex') {
+        if (e.key === "ArrowLeft") changePhoto(-1);
+        if (e.key === "ArrowRight") changePhoto(1);
+        if (e.key === "Escape") closeLightbox();
+    } else if (document.getElementById('albumModal').style.display === 'block') {
+        if (e.key === "Escape") closeAlbum();
+    }
+});
+
+loadGallery();
+
+</script>
+</body>
+</html>

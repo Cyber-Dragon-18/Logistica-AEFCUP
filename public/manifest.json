@@ -1,0 +1,22 @@
+{
+  "name": "Logística AEFCUP",
+  "short_name": "AEFCUP",
+  "description": "Sistema de Gestão da AEFCUP",
+  "start_url": "/dashboard.html",
+  "display": "standalone",
+  "background_color": "#f8f9fa",
+  "theme_color": "#1a73e8",
+  "icons": [
+    {
+      "src": "/lib/LogoBranco.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/lib/LogoBranco.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

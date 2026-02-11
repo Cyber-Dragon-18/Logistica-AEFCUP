@@ -10,6 +10,8 @@ import (
 	"net/smtp"
 	"os"
 
+	"github.com/cloudinary/cloudinary-go/v2"
+	"github.com/cloudinary/cloudinary-go/v2/api/uploader"
 	_ "github.com/lib/pq" // Driver para PostgreSQL
 	"golang.org/x/crypto/bcrypt"
 )
@@ -72,6 +74,24 @@ func main() {
 	http.HandleFunc("/api/admin/users", handleGetUsers)
 	http.HandleFunc("/api/admin/update-role", handleUpdateRole)
 	http.HandleFunc("/api/admin/delete-user", handleDeleteUser)
+
+	http.HandleFunc("/api/gallery/upload", handleGalleryUpload)
+	http.HandleFunc("/api/gallery/public", handlePublicGallery)
+	http.HandleFunc("/api/gallery/delete", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			return
+		}
+		title := r.URL.Query().Get("title")
+		_, err := db.Exec("DELETE FROM gallery WHERE title = $1", title)
+		if err != nil {
+			http.Error(w, "Erro ao eliminar", 500)
+			return
+		}
+		w.WriteHeader(200)
+	})
+	http.HandleFunc("/api/gallery/admin-list", handleAdminGalleryList)
+	http.HandleFunc("/api/gallery/add-photos", handleAddPhotosToAlbum)
+	http.HandleFunc("/api/gallery/delete-photo", handleDeletePhoto)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -323,4 +343,109 @@ func seedDatabase() {
 	hash, _ := bcrypt.GenerateFromPassword([]byte("Romdsc__18"), 10)
 	db.Exec("INSERT INTO users (name, email, password, role, department) VALUES ($1, $2, $3, 'LOGISTICA', 'Direção') ON CONFLICT (email) DO NOTHING",
 		"Rodrigo Coelho", "rodrimcoelho@gmail.com", string(hash))
+}
+
+func handleGalleryUpload(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		return
+	}
+
+	r.ParseMultipartForm(32 << 20)
+	title := r.FormValue("title")
+	dept := r.FormValue("department")
+	cld, _ := cloudinary.NewFromURL(os.Getenv("CLOUDINARY_URL"))
+
+	// 1. PROCESSAR O CARTAZ (is_cover = TRUE)
+	coverFile, _, err := r.FormFile("cover")
+	if err == nil {
+		resp, _ := cld.Upload.Upload(r.Context(), coverFile, uploader.UploadParams{Folder: "aefcup"})
+		db.Exec("INSERT INTO gallery (title, image_url, department, is_cover) VALUES ($1, $2, $3, TRUE)",
+			title, resp.SecureURL, dept)
+		coverFile.Close()
+	}
+
+	// 2. PROCESSAR AS RESTANTES FOTOS (is_cover = FALSE)
+	files := r.MultipartForm.File["images"]
+	for _, fileHeader := range files {
+		file, _ := fileHeader.Open()
+		resp, _ := cld.Upload.Upload(r.Context(), file, uploader.UploadParams{Folder: "aefcup"})
+		db.Exec("INSERT INTO gallery (title, image_url, department, is_cover) VALUES ($1, $2, $3, FALSE)",
+			title, resp.SecureURL, dept)
+		file.Close()
+	}
+	w.WriteHeader(201)
+}
+
+func handlePublicGallery(w http.ResponseWriter, r *http.Request) {
+	const secretToken = "aefcup-galeria-2026-xyz"
+	if r.URL.Query().Get("token") != secretToken {
+		http.Error(w, "Acesso Negado", 403)
+		return
+	}
+	rows, _ := db.Query("SELECT title, image_url, is_cover FROM gallery ORDER BY created_at DESC")
+	var photos []map[string]interface{} // Mudado para interface{} para suportar booleanos
+	for rows.Next() {
+		var t, u string
+		var ic bool // Variável para ler o booleano
+		rows.Scan(&t, &u, &ic)
+		photos = append(photos, map[string]interface{}{"title": t, "url": u, "is_cover": ic})
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(photos)
+}
+
+func handleAdminGalleryList(w http.ResponseWriter, r *http.Request) {
+	rows, err := db.Query("SELECT title, image_url, is_cover FROM gallery ORDER BY created_at DESC")
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	defer rows.Close()
+
+	var photos []map[string]interface{}
+	for rows.Next() {
+		var t, u string
+		var ic bool
+		rows.Scan(&t, &u, &ic)
+		photos = append(photos, map[string]interface{}{"title": t, "url": u, "is_cover": ic})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(photos)
+}
+
+func handleAddPhotosToAlbum(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		return
+	}
+
+	r.ParseMultipartForm(32 << 20)
+	title := r.FormValue("title")
+	dept := r.FormValue("department")
+	cld, _ := cloudinary.NewFromURL(os.Getenv("CLOUDINARY_URL"))
+
+	files := r.MultipartForm.File["images"]
+	for _, fileHeader := range files {
+		file, _ := fileHeader.Open()
+		resp, _ := cld.Upload.Upload(r.Context(), file, uploader.UploadParams{Folder: "aefcup"})
+		db.Exec("INSERT INTO gallery (title, image_url, department, is_cover) VALUES ($1, $2, $3, FALSE)",
+			title, resp.SecureURL, dept)
+		file.Close()
+	}
+	w.WriteHeader(200)
+}
+
+func handleDeletePhoto(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		return
+	}
+
+	// Recebe o URL da imagem para a remover da BD
+	photoURL := r.URL.Query().Get("url")
+	_, err := db.Exec("DELETE FROM gallery WHERE image_url = $1", photoURL)
+	if err != nil {
+		http.Error(w, "Erro ao eliminar foto", 500)
+		return
+	}
+	w.WriteHeader(200)
 }
