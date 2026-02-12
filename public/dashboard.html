@@ -79,6 +79,22 @@
             </div>
         </div>
 
+        <div id="nucleoArea" style="display: none; margin: 60px auto;max-width: 800px; animation: fadeIn 0.5s ease;">
+            <h2 style="text-align: center; color: #202124; margin-bottom: 40px; font-weight: 500;">O que pretendes fazer hoje?</h2>
+            <div class ="mkt-container">
+                <div onclick="showMktRequests()" class="mkt-card" style="background: white; padding: 40px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.3s ease; border: 1px solid #eee; text-align: center;">
+                    <div style="font-size: 40px; margin-bottom: 15px;">📋</div>
+                    <h3 style="color: var(--primary); margin: 0;">Fazer Requisição</h3>
+                    <p style="color: #70757a; font-size: 14px; margin-top: 10px;">Criar novo pedido de logística para eventos.</p>
+                </div>
+                    <div onclick="openPublicGallery()" class="mkt-card" style="background: white; padding: 40px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.3s ease; border: 1px solid #eee; text-align: center;">
+                    <div style="font-size: 40px; margin-bottom: 15px;">🌐</div>
+                    <h3 style="color: #1a73e8; margin: 0;">Ver Galeria Pública</h3>
+                    <p style="color: #70757a; font-size: 14px; margin-top: 10px;">Abrir a galeria como os sócios a veem.</p>
+                </div>
+            </div>
+        </div>
+
         <section id="coordArea" style="display: none; border-bottom: 2px solid #f1f3f4; padding-bottom: 30px; margin-bottom: 30px;">
             <div id="mktBackHeader" style="display: none; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h3 style="margin: 0;">Novo Pedido de Logística</h3>
@@ -195,6 +211,10 @@
                 document.getElementById('marketingArea').style.display = 'block';
                 document.getElementById('coordArea').style.display = 'none';
                 toggleMarketingElements(false);
+            } else if (user.department === 'Núcleo de Gestão'){
+                document.getElementById('nucleoArea').style.display = 'block';
+                document.getElementById('coordArea').style.display = 'none';
+                toggleMarketingElements(false);
             } else {
                 document.getElementById('coordArea').style.display = 'block';
             }
@@ -203,25 +223,37 @@
     }
 
     // FUNÇÕES DE MARKETING
-    function showMktRequests() {
-        document.getElementById('marketingArea').style.display = 'none';
-        document.getElementById('coordArea').style.display = 'block';
-        document.getElementById('mktBackHeader').style.display = 'flex';
-        document.getElementById('standardCoordTitle').style.display = 'none';
-        toggleMarketingElements(true);
-    }
+function showMktRequests() {
+    document.getElementById('marketingArea').style.display = 'none';
+    document.getElementById('nucleoArea').style.display = 'none'; 
+    
+    document.getElementById('coordArea').style.display = 'block';
+    document.getElementById('mktBackHeader').style.display = 'flex';
+    document.getElementById('standardCoordTitle').style.display = 'none';
+    
+    toggleMarketingElements(true);
+}
 
-    function backToMktMenu() {
+function backToMktMenu() {
+    document.getElementById('coordArea').style.display = 'none';
+    
+    if (user.department === 'Marketing') {
         document.getElementById('marketingArea').style.display = 'block';
-        document.getElementById('coordArea').style.display = 'none';
-        toggleMarketingElements(false);
+    } else if (user.department === 'Núcleo de Gestão') {
+        document.getElementById('nucleoArea').style.display = 'block';
     }
+    
+    toggleMarketingElements(false);
+}
 
-    function toggleMarketingElements(show) {
-        const val = show ? 'block' : 'none';
-        document.getElementById('historyTitle').style.display = val;
-        document.getElementById('historyTableContainer').style.display = val;
-    }
+function toggleMarketingElements(show) {
+    const val = show ? 'block' : 'none';
+    const historyTitle = document.getElementById('historyTitle');
+    const historyTable = document.getElementById('historyTableContainer');
+    
+    if (historyTitle) historyTitle.style.display = val;
+    if (historyTable) historyTable.style.display = val;
+}
 
     // LÓGICA DE DADOS ORIGINAL
     async function load() {
