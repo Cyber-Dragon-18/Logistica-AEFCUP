@@ -265,16 +265,21 @@ func handleListRequests(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleUpdateStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		return
+	}
 	var data struct {
 		ID     int    `json:"id"`
 		Status string `json:"status"`
-		Role   string `json:"role"`
 	}
 	json.NewDecoder(r.Body).Decode(&data)
-	if data.Role == "LOGISTICA" {
-		db.Exec("UPDATE requests SET status = $1 WHERE id = $2", data.Status, data.ID)
-		w.WriteHeader(200)
+
+	_, err := db.Exec("UPDATE requests SET status = $1 WHERE id = $2", data.Status, data.ID)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
 	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func handleUpdateProfile(w http.ResponseWriter, r *http.Request) {
@@ -341,7 +346,7 @@ func handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 
 func seedDatabase() {
 	hash, _ := bcrypt.GenerateFromPassword([]byte("Romdsc__18"), 10)
-	db.Exec("INSERT INTO users (name, email, password, role, department) VALUES ($1, $2, $3, 'LOGISTICA', 'Direção') ON CONFLICT (email) DO NOTHING",
+	db.Exec("INSERT INTO users (name, email, password, role, department) VALUES ($1, $2, $3, 'ADMIN', 'Marketing') ON CONFLICT (email) DO NOTHING",
 		"Rodrigo Coelho", "rodrimcoelho@gmail.com", string(hash))
 }
 

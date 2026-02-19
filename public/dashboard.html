@@ -28,6 +28,31 @@
                 padding: 25px !important; /* Menos padding para ganhar espaço vertical */
             }
         }
+
+        /* DESIGN MELHORADO DOS BOTÕES DE LOGÍSTICA */
+        .action-btn { 
+            padding: 8px 14px; 
+            border-radius: 8px; 
+            border: none; 
+            color: white; 
+            cursor: pointer; 
+            font-size: 11px; 
+            font-weight: 700;
+            margin-right: 6px;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .action-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); opacity: 0.9; }
+        .btn-accept { background: linear-gradient(135deg, #f29900 0%, #e68a00 100%); }
+        .btn-complete { background: linear-gradient(135deg, #188038 0%, #13692e 100%); }
+        .btn-reject { background: linear-gradient(135deg, #d93025 0%, #b3261e 100%); }
+        .btn-info { background: linear-gradient(135deg, #5f6368 0%, #3c4043 100%); margin-right: 10px; }
     </style>
 </head>
 <body>
@@ -47,6 +72,9 @@
                             <small id="menuDept" style="color: #70757a;">Departamento</small>
                         </div>
                         <a href="/profile.html">⚙️ Editar Perfil</a>
+                        
+                        <a href="/admin.html" id="adminLink" style="display:none; font-weight:bold; color:var(--primary);">👥 Gerir Utilizadores</a>
+                        
                         <a href="#" onclick="logout()" style="color: var(--danger);">🚪 Sair</a>
                     </div>
                 </div>
@@ -154,15 +182,20 @@
             <label style="font-weight: bold; margin-right: 10px;">🔍 Filtrar por Departamento:</label>
             <select id="deptFilter" onchange="filterData()" style="width: auto; margin: 0;">
                 <option value="ALL">Todos os Departamentos</option>
-                <option value="Marketing">Marketing</option>
+                <option value="Núcleo de Gestão">Núcleo de Gestão</option>
+                <option value="Apoio ao Estudante">Apoio ao Estudante</option>
                 <option value="Desportivo">Desportivo</option>
+                <option value="Emprego e Formação">Emprego e Formação</option>
+                <option value="Intervenção Social e Sustentabilidade">Intervenção Social e Sustentabilidade</option>
+                <option value="Marketing">Marketing</option>
+                <option value="Recreativo e Cultural">Recreativo e Cultural</option>
             </select>
         </div>
 
         <h3 id="historyTitle">Histórico de Pedidos</h3>
         <div class="table-container" id="historyTableContainer">
             <table>
-                <thead><tr><th>Dept</th><th>Pedido</th><th>Evento</th><th>Estado</th><th>Ação</th></tr></thead>
+                <thead><tr><th>Dept</th><th>Pedido</th><th>Evento</th><th>Estado</th><th>Ações</th></tr></thead>
                 <tbody id="reqTable"></tbody>
             </table>
         </div>
@@ -186,77 +219,93 @@
     const user = JSON.parse(userData);
     let allReqs = [];
 
-    if (user) {
-        document.getElementById('welcomeName').innerText = `Olá, ${user.name}`;
-        document.getElementById('menuName').innerText = user.name;
-        document.getElementById('menuDept').innerText = user.department;
-        updateAvatar();
+    // INICIALIZAÇÃO
+    window.onload = () => {
+        if (user) {
+            document.getElementById('welcomeName').innerText = `Olá, ${user.name}`;
+            document.getElementById('menuName').innerText = user.name;
+            document.getElementById('menuDept').innerText = user.department;
+            updateAvatar();
 
-        if (user.role === 'LOGISTICA') {
-            document.getElementById('statsArea').style.display = 'flex';
-            document.getElementById('logisticsFilter').style.display = 'block';
-            
-            const dropdown = document.getElementById('avatarDropdown');
-            if (dropdown && !document.getElementById('adminLink')) {
-                const adminLink = document.createElement('a');
-                adminLink.id = "adminLink";
-                adminLink.href = "/admin.html";
-                adminLink.innerHTML = "👥 Gerir Utilizadores";
-                adminLink.style.fontWeight = "bold";
-                adminLink.style.color = "var(--primary)";
-                dropdown.prepend(adminLink); 
-            }
-        } else {
-            if (user.department === 'Marketing') {
-                document.getElementById('marketingArea').style.display = 'block';
-                document.getElementById('coordArea').style.display = 'none';
-                toggleMarketingElements(false);
-            } else if (user.department === 'Núcleo de Gestão'){
-                document.getElementById('nucleoArea').style.display = 'block';
-                document.getElementById('coordArea').style.display = 'none';
-                toggleMarketingElements(false);
+            const role = user.role.toUpperCase();
+            if (role === 'LOGISTICA' || role === 'ADMIN') {
+                document.getElementById('statsArea').style.display = 'flex';
+                document.getElementById('logisticsFilter').style.display = 'block';
+                document.getElementById('marketingArea').style.display = 'block'; 
+                document.getElementById('adminLink').style.display = 'block';
             } else {
-                document.getElementById('coordArea').style.display = 'block';
+                if (user.department === 'Marketing') {
+                    document.getElementById('marketingArea').style.display = 'block';
+                    document.getElementById('coordArea').style.display = 'none';
+                    toggleMarketingElements(false);
+                } else if (user.department === 'Núcleo de Gestão'){
+                    document.getElementById('nucleoArea').style.display = 'block';
+                    document.getElementById('coordArea').style.display = 'none';
+                    toggleMarketingElements(false);
+                } else {
+                    document.getElementById('coordArea').style.display = 'block';
+                }
+                document.getElementById('autoDept').innerText = user.department;
             }
-            document.getElementById('autoDept').innerText = user.department;
+            loadData();
+        }
+    };
+
+    // FUNÇÃO DE ENVIO
+    async function submitReq() {
+        const reqData = {
+            title: document.getElementById('title').value,
+            description: document.getElementById('desc').value,
+            authorId: user.id,
+            department: user.department,
+            serviceType: document.getElementById('service').value,
+            eventName: document.getElementById('evName').value,
+            eventDate: document.getElementById('evDate').value,
+            observations: document.getElementById('obs').value
+        };
+
+        if (!reqData.title || !reqData.eventName) {
+            alert("Por favor, preencha o título e o nome do evento.");
+            return;
+        }
+
+        const btn = document.getElementById('btnSubmit');
+        btn.disabled = true;
+        btn.innerText = "A enviar...";
+
+        try {
+            const res = await fetch('/api/requests', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(reqData)
+            });
+
+            if (res.ok) {
+                alert("Pedido enviado com sucesso!");
+                location.reload(); 
+            } else {
+                alert("Erro ao enviar pedido.");
+            }
+        } catch (err) {
+            alert("Erro de ligação ao servidor.");
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "Enviar Pedido para Logística";
         }
     }
 
-    // FUNÇÕES DE MARKETING
-function showMktRequests() {
-    document.getElementById('marketingArea').style.display = 'none';
-    document.getElementById('nucleoArea').style.display = 'none'; 
-    
-    document.getElementById('coordArea').style.display = 'block';
-    document.getElementById('mktBackHeader').style.display = 'flex';
-    document.getElementById('standardCoordTitle').style.display = 'none';
-    
-    toggleMarketingElements(true);
-}
-
-function backToMktMenu() {
-    document.getElementById('coordArea').style.display = 'none';
-    
-    if (user.department === 'Marketing') {
-        document.getElementById('marketingArea').style.display = 'block';
-    } else if (user.department === 'Núcleo de Gestão') {
-        document.getElementById('nucleoArea').style.display = 'block';
+    // AÇÕES DE LOGÍSTICA
+    async function updateStatus(id, newStatus) {
+        const res = await fetch('/api/requests/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, status: newStatus, role: user.role })
+        });
+        if (res.ok) loadData();
     }
-    
-    toggleMarketingElements(false);
-}
 
-function toggleMarketingElements(show) {
-    const val = show ? 'block' : 'none';
-    const historyTitle = document.getElementById('historyTitle');
-    const historyTable = document.getElementById('historyTableContainer');
-    
-    if (historyTitle) historyTitle.style.display = val;
-    if (historyTable) historyTable.style.display = val;
-}
-
-    // LÓGICA DE DADOS ORIGINAL
-    async function load() {
+    // CARREGAMENTO DE DADOS
+    async function loadData() {
         const r = await fetch(`/api/requests/list?userId=${user.id}&role=${user.role}`);
         allReqs = await r.json();
         updateStats(allReqs);
@@ -264,18 +313,56 @@ function toggleMarketingElements(show) {
     }
 
     function renderTable(data) {
-        document.getElementById('reqTable').innerHTML = data.map(i => `
-            <tr>
+        const role = user.role.toUpperCase();
+        const isAdmin = (role === 'ADMIN' || role === 'LOGISTICA');
+
+        document.getElementById('reqTable').innerHTML = data.map(i => {
+            let actions = `<button class="action-btn btn-info" onclick='viewDetails(${JSON.stringify(i)})'>Info</button>`;
+            
+            if (isAdmin) {
+                if (i.status === 'PENDING') {
+                    actions += `<button class="action-btn btn-accept" onclick="updateStatus(${i.id}, 'ACCEPTED')">Aceitar</button>`;
+                    actions += `<button class="action-btn btn-reject" onclick="updateStatus(${i.id}, 'REJECTED')">Recusar</button>`;
+                } else if (i.status === 'ACCEPTED') {
+                    actions += `<button class="action-btn btn-complete" onclick="updateStatus(${i.id}, 'COMPLETED')">Concluir</button>`;
+                }
+            }
+
+            return `<tr>
                 <td><strong>${i.department}</strong></td>
                 <td>${i.title}</td>
                 <td>${i.eventName || 'N/A'}</td>
                 <td><span class="status status-${i.status.toLowerCase()}">${i.status}</span></td>
-                <td><button onclick='viewDetails(${JSON.stringify(i)})' style="background:#5f6368;">Info</button></td>
-            </tr>`).join('');
+                <td style="min-width:180px;">${actions}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    // FUNÇÕES ORIGINAIS
+    function showMktRequests() {
+        document.getElementById('marketingArea').style.display = 'none';
+        document.getElementById('nucleoArea').style.display = 'none'; 
+        document.getElementById('coordArea').style.display = 'block';
+        document.getElementById('mktBackHeader').style.display = 'flex';
+        document.getElementById('standardCoordTitle').style.display = 'none';
+        toggleMarketingElements(true);
+    }
+
+    function backToMktMenu() {
+        document.getElementById('coordArea').style.display = 'none';
+        if (user.department === 'Marketing') document.getElementById('marketingArea').style.display = 'block';
+        else if (user.department === 'Núcleo de Gestão') document.getElementById('nucleoArea').style.display = 'block';
+        toggleMarketingElements(false);
+    }
+
+    function toggleMarketingElements(show) {
+        const val = show ? 'block' : 'none';
+        if (document.getElementById('historyTitle')) document.getElementById('historyTitle').style.display = val;
+        if (document.getElementById('historyTableContainer')) document.getElementById('historyTableContainer').style.display = val;
     }
 
     function updateStats(data) {
-        if (user.role !== 'LOGISTICA') return;
+        if (user.role.toUpperCase() !== 'LOGISTICA' && user.role.toUpperCase() !== 'ADMIN') return;
         const s = { PENDING: 0, ACCEPTED: 0, COMPLETED: 0 };
         data.forEach(r => { if(s[r.status] !== undefined) s[r.status]++; });
         document.getElementById('statPending').innerText = s.PENDING;
@@ -288,23 +375,19 @@ function toggleMarketingElements(show) {
         renderTable(val === "ALL" ? allReqs : allReqs.filter(r => r.department === val));
     }
 
-    function updateAvatar() {
-        const bubble = document.getElementById('userAvatar');
-        if (user.photo && !user.photo.startsWith('#')) {
-            bubble.innerHTML = `<img src="${user.photo}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
-        } else {
-            bubble.style.backgroundColor = user.photo || 'var(--primary)';
-            bubble.innerHTML = `<span>${user.name.charAt(0).toUpperCase()}</span>`;
-        }
+    function viewDetails(i) {
+        document.getElementById('mTitle').innerText = i.title;
+        document.getElementById('mEvent').innerText = i.eventName || '---';
+        document.getElementById('mDate').innerText = i.eventDate || '---';
+        document.getElementById('mDesc').innerText = i.description;
+        document.getElementById('detailsModal').style.display = 'block';
     }
 
+    function closeModal() { document.getElementById('detailsModal').style.display = 'none'; }
+    function updateAvatar() { const bubble = document.getElementById('userAvatar'); if (user.photo && !user.photo.startsWith('#')) bubble.innerHTML = `<img src="${user.photo}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`; else { bubble.style.backgroundColor = user.photo || 'var(--primary)'; bubble.innerHTML = `<span>${user.name.charAt(0).toUpperCase()}</span>`; } }
     function toggleMenu() { document.getElementById("avatarDropdown").classList.toggle("show"); }
     function logout() { localStorage.clear(); window.location.href = "/"; }
-    function openPublicGallery() {
-        const secretToken = "aefcup-galeria-2026-xyz";
-        window.open(`/galeria.html?token=${secretToken}`, '_blank');
-    }
-    load();
+    function openPublicGallery() { window.open(`/galeria.html?token=aefcup-galeria-2026-xyz`, '_blank'); }
 </script>
 </body>
 </html>
