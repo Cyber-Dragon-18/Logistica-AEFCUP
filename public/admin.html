@@ -38,8 +38,10 @@
 
     <script>
         const user = JSON.parse(localStorage.getItem('user'));
-        if (!user || user.role !== 'LOGISTICA') window.location.href = "/dashboard.html";
-
+// Permite que tanto LOGISTICA como ADMIN acedam à página
+        if (!user || (user.role !== 'LOGISTICA' && user.role !== 'ADMIN')) {
+            window.location.href = "/dashboard.html";
+        }
         async function loadUsers() {
             const r = await fetch(`/api/admin/users?role=${user.role}`);
             const users = await r.json();
@@ -62,18 +64,27 @@
             `).join('');
         }
 
-        async function deleteUser(id) {
-            if (!confirm("AVISO: Esta ação é permanente. Eliminar conta?")) return;
+        async function deleteUser(userId) {
+            if (!confirm("Tem a certeza que deseja eliminar este utilizador?")) return;
 
-            const res = await fetch('/api/admin/delete-user', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ id: id, adminRole: user.role })
-            });
+            try {
+                const res = await fetch('/api/admin/delete-user', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        id: userId, 
+                        adminRole: user.role // Garante que envia a role correta
+                    })
+                });
 
-            if (res.ok) {
-                alert("Conta eliminada.");
-                loadUsers(); // Refresh the list
+                if (res.ok) {
+                    alert("Utilizador eliminado com sucesso!");
+                    location.reload(); // Recarrega para fazer o utilizador desaparecer da lista
+                } else {
+                    alert("Erro ao eliminar: Verifique as suas permissões.");
+                }
+            } catch (err) {
+                console.error("Erro na ligação:", err);
             }
         }
 

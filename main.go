@@ -12,7 +12,7 @@ import (
 
 	"github.com/cloudinary/cloudinary-go/v2"
 	"github.com/cloudinary/cloudinary-go/v2/api/uploader"
-	_ "github.com/lib/pq" // Driver para PostgreSQL
+	_ "github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -39,6 +39,53 @@ type User struct {
 	Role       string `json:"role"`
 	Department string `json:"department"`
 	Photo      string `json:"photo"`
+}
+
+type ShiftTable struct {
+	ID        int    `json:"id"`
+	EventName string `json:"eventName"`
+	Date      string `json:"date"`
+}
+
+type ShiftSlot struct {
+	ID        int    `json:"id"`
+	TimeRange string `json:"timeRange"`
+	Category  string `json:"category"`
+	Label     string `json:"label"`
+	UserEmail string `json:"userEmail"`
+	UserName  string `json:"userName"`
+}
+
+type ShiftData struct {
+	EventName string `json:"eventName"`
+	Date      string `json:"date"`
+	Slots     []struct {
+		T string `json:"t"`
+		C string `json:"c"`
+		L string `json:"l"`
+	} `json:"slots"`
+}
+
+type GridCell struct {
+	Row     int    `json:"r"`
+	Col     int    `json:"c"`
+	Content string `json:"content"`
+	IsSlot  bool   `json:"isSlot"`
+	Span    int    `json:"span"` // Novo campo
+}
+
+type GridPayload struct {
+	EventName string     `json:"eventName"`
+	Date      string     `json:"date"`
+	Cells     []GridCell `json:"cells"`
+}
+
+type AttendanceRecord struct {
+	ID     int    `json:"id"`
+	Title  string `json:"title"`
+	Date   string `json:"date"`
+	Status string `json:"status"`
+	Obs    string `json:"obs"`
 }
 
 func main() {
@@ -92,7 +139,18 @@ func main() {
 	http.HandleFunc("/api/gallery/admin-list", handleAdminGalleryList)
 	http.HandleFunc("/api/gallery/add-photos", handleAddPhotosToAlbum)
 	http.HandleFunc("/api/gallery/delete-photo", handleDeletePhoto)
-
+	http.HandleFunc("/api/shifts/list", handleListShifts)
+	http.HandleFunc("/api/shifts/book", handleBookShift)
+	http.HandleFunc("/api/shifts/save-grid", handleSaveGrid)
+	http.HandleFunc("/api/shifts/clear", handleClearShift)
+	http.HandleFunc("/api/shifts/select-user", handleSelectUser)
+	http.HandleFunc("/api/shifts/delete-grid", handleDeleteGrid)
+	http.HandleFunc("/api/attendance/members", handleAttendanceMembers)
+	http.HandleFunc("/api/attendance/user", handleUserAttendance)
+	http.HandleFunc("/api/attendance/save", handleSaveAttendance)
+	http.HandleFunc("/api/attendance/justify", handleJustifyAbsence)
+	http.HandleFunc("/api/attendance/admin-list", handleAdminAttendanceList)
+	http.HandleFunc("/api/attendance/validate", handleValidateAttendance)
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
@@ -226,12 +284,21 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 
 func handleRegister(w http.ResponseWriter, r *http.Request) {
 	var u User
-	json.NewDecoder(r.Body).Decode(&u)
+	if err := json.NewDecoder(r.Body).Decode(&u); err != nil {
+		http.Error(w, "Dados inválidos", 400)
+		return
+	}
+
+	// Criptografia da password
 	hash, _ := bcrypt.GenerateFromPassword([]byte(u.Password), 10)
-	_, err := db.Exec("INSERT INTO users (name, email, password, role, department) VALUES ($1, $2, $3, 'COORDENADOR', $4)",
-		u.Name, u.Email, string(hash), u.Department)
+
+	// AGORA: Usamos u.Role (que vem do formulário) em vez de escrever "COORDENADOR"
+	query := "INSERT INTO users (name, email, password, role, department) VALUES ($1, $2, $3, $4, $5)"
+	_, err := db.Exec(query, u.Name, u.Email, string(hash), u.Role, u.Department)
+
 	if err != nil {
-		http.Error(w, "Erro", 400)
+		log.Printf("Erro no registo: %v", err)
+		http.Error(w, "Erro ao criar conta. O email já pode estar em uso.", 400)
 		return
 	}
 	w.WriteHeader(201)
@@ -338,10 +405,27 @@ func handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 		TargetID  int    `json:"id"`
 		AdminRole string `json:"adminRole"`
 	}
-	json.NewDecoder(r.Body).Decode(&data)
-	if data.AdminRole == "LOGISTICA" {
-		db.Exec("DELETE FROM users WHERE id = $1", data.TargetID)
+	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+		http.Error(w, "Dados inválidos", 400)
+		return
 	}
+
+	// Agora permite ADMIN ou LOGISTICA
+	role := data.AdminRole
+	if role == "LOGISTICA" || role == "ADMIN" {
+		_, err := db.Exec("DELETE FROM users WHERE id = $1", data.TargetID)
+		if err != nil {
+			log.Printf("Erro ao eliminar utilizador: %v", err)
+			http.Error(w, "Erro ao eliminar da base de dados", 500)
+			return
+		}
+
+		log.Printf("Utilizador %d eliminado por %s", data.TargetID, role)
+		w.WriteHeader(http.StatusOK) // Envia 200 OK para o frontend
+		return
+	}
+
+	http.Error(w, "Não tens permissão para eliminar utilizadores", 403)
 }
 
 func seedDatabase() {
@@ -450,6 +534,375 @@ func handleDeletePhoto(w http.ResponseWriter, r *http.Request) {
 	_, err := db.Exec("DELETE FROM gallery WHERE image_url = $1", photoURL)
 	if err != nil {
 		http.Error(w, "Erro ao eliminar foto", 500)
+		return
+	}
+	w.WriteHeader(200)
+}
+
+func handleListShifts(w http.ResponseWriter, r *http.Request) {
+	// Usamos um LEFT JOIN para trazer os slots e as inscrições juntas numa só viagem à BD
+	query := `
+        SELECT s.id, s.row_idx, s.col_idx, s.content, s.is_slot, s.event_name, s.event_date,
+               e.user_name, e.selected
+        FROM shift_slots s
+        LEFT JOIN shift_enrollments e ON s.id = e.slot_id
+        ORDER BY s.row_idx, s.col_idx`
+
+	rows, err := db.Query(query)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	defer rows.Close()
+
+	type slotData struct {
+		ID      int                      `json:"id"`
+		R       int                      `json:"r"`
+		C       int                      `json:"c"`
+		Content string                   `json:"content"`
+		IsSlot  bool                     `json:"isSlot"`
+		Users   []map[string]interface{} `json:"users"`
+	}
+
+	slotsMap := make(map[int]*slotData)
+	var eventName, eventDate string
+	var order []int
+
+	for rows.Next() {
+		var id, r, c int
+		var content, en, ed string
+		var isSlot bool
+		var uName sql.NullString
+		var sel sql.NullBool
+
+		rows.Scan(&id, &r, &c, &content, &isSlot, &en, &ed, &uName, &sel)
+		eventName, eventDate = en, ed
+
+		if _, ok := slotsMap[id]; !ok {
+			slotsMap[id] = &slotData{ID: id, R: r, C: c, Content: content, IsSlot: isSlot, Users: []map[string]interface{}{}}
+			order = append(order, id)
+		}
+		if uName.Valid {
+			slotsMap[id].Users = append(slotsMap[id].Users, map[string]interface{}{
+				"name": uName.String, "selected": sel.Bool,
+			})
+		}
+	}
+
+	var finalSlots []interface{}
+	for _, id := range order {
+		finalSlots = append(finalSlots, slotsMap[id])
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"eventName": eventName,
+		"date":      eventDate,
+		"slots":     finalSlots,
+	})
+}
+
+func handleBookShift(w http.ResponseWriter, r *http.Request) {
+	var data struct {
+		ID   int    `json:"id"`
+		User string `json:"userName"`
+	}
+	json.NewDecoder(r.Body).Decode(&data)
+
+	// Usamos ON CONFLICT para evitar erros se ele clicar duas vezes rápido
+	query := `INSERT INTO shift_enrollments (slot_id, user_name) 
+              VALUES ($1, $2) 
+              ON CONFLICT DO NOTHING`
+
+	_, err := db.Exec(query, data.ID, data.User)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	w.WriteHeader(200)
+}
+
+func handleSaveGrid(w http.ResponseWriter, r *http.Request) {
+	var data GridPayload
+	json.NewDecoder(r.Body).Decode(&data)
+
+	tx, _ := db.Begin() // Inicia transação para ser super rápido
+
+	tx.Exec("DELETE FROM shift_enrollments")
+	tx.Exec("DELETE FROM shift_slots")
+
+	stmt, _ := tx.Prepare("INSERT INTO shift_slots (row_idx, col_idx, content, is_slot, event_name, event_date, col_span) VALUES ($1, $2, $3, $4, $5, $6, $7)")
+
+	for _, cell := range data.Cells {
+		stmt.Exec(cell.Row, cell.Col, cell.Content, cell.IsSlot, data.EventName, data.Date, cell.Span)
+	}
+
+	tx.Commit() // Grava tudo de uma vez
+	w.WriteHeader(http.StatusOK)
+}
+
+func handleClearShift(w http.ResponseWriter, r *http.Request) {
+	var data struct {
+		ID   int    `json:"id"`
+		User string `json:"userName"`
+	}
+	json.NewDecoder(r.Body).Decode(&data)
+
+	// Apaga apenas a inscrição deste utilizador neste slot
+	_, err := db.Exec("DELETE FROM shift_enrollments WHERE slot_id = $1 AND user_name = $2", data.ID, data.User)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func handleSelectUser(w http.ResponseWriter, r *http.Request) {
+	var data struct {
+		SlotID   int    `json:"slotId"`
+		UserName string `json:"userName"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+		http.Error(w, "Erro no JSON", 400)
+		return
+	}
+
+	// O NOT selected é a forma mais rápida de alternar o estado
+	query := "UPDATE shift_enrollments SET selected = NOT selected WHERE slot_id = $1 AND user_name = $2"
+
+	_, err := db.Exec(query, data.SlotID, data.UserName)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func handleDeleteGrid(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		return
+	}
+	// 1. Apaga primeiro as inscrições porque elas dependem dos slots
+	_, err := db.Exec("DELETE FROM shift_enrollments")
+	if err != nil {
+		log.Printf("Erro ao apagar inscrições: %v", err)
+	}
+
+	// 2. Apaga os slots
+	_, err = db.Exec("DELETE FROM shift_slots")
+	if err != nil {
+		log.Printf("Erro ao apagar slots: %v", err)
+	}
+
+	// 3. Reinicia o contador para novos postos começarem no ID 1
+	db.Exec("ALTER SEQUENCE shift_slots_id_seq RESTART WITH 1")
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func handleAttendanceMembers(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	dept := r.URL.Query().Get("dept")
+	if dept == "" {
+		http.Error(w, "Departamento não especificado", http.StatusBadRequest)
+		return
+	}
+
+	// Procura membros filtrando por departamento
+	rows, err := db.Query("SELECT id, name, email FROM users WHERE department = $1 ORDER BY name ASC", dept)
+	if err != nil {
+		http.Error(w, "Erro ao aceder à base de dados", 500)
+		return
+	}
+	defer rows.Close()
+
+	var members []User
+	for rows.Next() {
+		var u User
+		if err := rows.Scan(&u.ID, &u.Name, &u.Email); err != nil {
+			continue
+		}
+		members = append(members, u)
+	}
+
+	// Garante que devolve [] em vez de null se não houver ninguém
+	if members == nil {
+		members = []User{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(members)
+}
+
+func handleUserAttendance(w http.ResponseWriter, r *http.Request) {
+	userID := r.URL.Query().Get("userId")
+	if userID == "" {
+		http.Error(w, "ID em falta", 400)
+		return
+	}
+
+	// Consulta atualizada com "id"
+	rows, err := db.Query("SELECT id, meeting_title, meeting_date, status, observations FROM attendance_records WHERE user_id = $1", userID)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	defer rows.Close()
+
+	var history []AttendanceRecord
+	for rows.Next() {
+		var a AttendanceRecord
+		// Scan agora inclui o ID
+		if err := rows.Scan(&a.ID, &a.Title, &a.Date, &a.Status, &a.Obs); err != nil {
+			continue
+		}
+		history = append(history, a)
+	}
+
+	if history == nil {
+		history = []AttendanceRecord{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(history)
+}
+
+func handleSaveAttendance(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Método não permitido", 405)
+		return
+	}
+
+	// Estrutura para receber os dados do frontend
+	var data struct {
+		Title   string `json:"title"`
+		Date    string `json:"date"`
+		Records []struct {
+			UserID int    `json:"userId"`
+			Status string `json:"status"`
+			Obs    string `json:"obs"`
+		} `json:"records"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+		http.Error(w, "Erro no JSON", 400)
+		return
+	}
+
+	// Iniciar uma transação para guardar tudo de uma vez
+	tx, err := db.Begin()
+	if err != nil {
+		http.Error(w, "Erro no servidor", 500)
+		return
+	}
+
+	for _, rec := range data.Records {
+		_, err := tx.Exec(`
+			INSERT INTO attendance_records (user_id, meeting_title, meeting_date, status, observations)
+			VALUES ($1, $2, $3, $4, $5)`,
+			rec.UserID, data.Title, data.Date, rec.Status, rec.Obs)
+
+		if err != nil {
+			tx.Rollback()
+			http.Error(w, "Erro ao guardar registo", 500)
+			return
+		}
+	}
+
+	tx.Commit()
+	w.WriteHeader(http.StatusOK)
+}
+func handleJustifyAbsence(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		return
+	}
+	var data struct {
+		AbsenceID int    `json:"absenceId"`
+		Reason    string `json:"reason"`
+	}
+	json.NewDecoder(r.Body).Decode(&data)
+
+	query := "UPDATE attendance_records SET status = 'PENDENTE_JUSTIFICACAO', observations = $1 WHERE id = $2"
+	_, err := db.Exec(query, data.Reason, data.AbsenceID)
+	if err != nil {
+		http.Error(w, "Erro ao justificar", 500)
+		return
+	}
+	w.WriteHeader(200)
+}
+
+// Função para listar a assiduidade (agora com suporte para a visão global da Logística)
+func handleAdminAttendanceList(w http.ResponseWriter, r *http.Request) {
+	dept := r.URL.Query().Get("dept")
+
+	var rows *sql.Rows
+	var err error
+
+	// Se for "ALL", a Logística/Admin vê tudo. Caso contrário, filtra pelo departamento.
+	if dept == "ALL" {
+		rows, err = db.Query(`
+            SELECT a.id, u.name, a.meeting_title, a.meeting_date, a.status, a.observations, u.department 
+            FROM attendance_records a
+            JOIN users u ON a.user_id = u.id
+            ORDER BY a.meeting_date DESC`)
+	} else {
+		rows, err = db.Query(`
+            SELECT a.id, u.name, a.meeting_title, a.meeting_date, a.status, a.observations, u.department 
+            FROM attendance_records a
+            JOIN users u ON a.user_id = u.id
+            WHERE u.department = $1
+            ORDER BY a.meeting_date DESC`, dept)
+	}
+
+	if err != nil {
+		http.Error(w, "Erro ao listar assiduidade", 500)
+		return
+	}
+	defer rows.Close()
+
+	var list []map[string]interface{}
+	for rows.Next() {
+		var id int
+		var name, title, date, status, obs, uDept string
+		// O Scan deve coincidir com o número de colunas da Query (7 colunas)
+		if err := rows.Scan(&id, &name, &title, &date, &status, &obs, &uDept); err != nil {
+			continue
+		}
+		list = append(list, map[string]interface{}{
+			"id": id, "name": name, "title": title, "date": date,
+			"status": status, "obs": obs, "department": uDept,
+		})
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(list)
+}
+
+// Função que faltava e causava o erro de compilação
+func handleValidateAttendance(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Método não permitido", 405)
+		return
+	}
+	var data struct {
+		ID       int  `json:"id"`
+		Accepted bool `json:"accepted"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+		http.Error(w, "Dados inválidos", 400)
+		return
+	}
+
+	novoStatus := "FALTA_JUSTIFICADA"
+	if !data.Accepted {
+		novoStatus = "FALTA_INJUSTIFICADA"
+	}
+
+	_, err := db.Exec("UPDATE attendance_records SET status = $1 WHERE id = $2", novoStatus, data.ID)
+	if err != nil {
+		http.Error(w, "Erro ao atualizar base de dados", 500)
 		return
 	}
 	w.WriteHeader(200)

@@ -67,7 +67,6 @@ button:hover { opacity: 0.9; }
 /* New: Responsive Table Wrapper */
 .table-container {
     width: 100%;
-    overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     margin-top: 32px;
 }
@@ -314,4 +313,72 @@ td { padding: 16px 12px; border-bottom: 1px solid #f1f3f4; font-size: 14px; }
 .album-info {
     padding: 10px 20px !important; 
     background: white !important;
+}
+
+.shift-table {
+    width: 100%;
+    border-collapse: collapse; /* Para as bordas ficarem finas como no Word */
+    margin-top: 20px;
+    background: white;
+}
+
+/* Estilo para a primeira linha (cabeçalho dinâmico) */
+/* Seleciona a primeira linha da tabela e pinta todas as suas células de vermelho */
+#shiftTableBody tr:first-child td {
+    background-color: #d93025 !important;
+    color: white !important;
+    font-weight: bold;
+    text-transform: uppercase;
+    border: 1px solid #b71c1c;
+}
+
+@media (max-width: 768px) {
+
+    /* Remove comportamento de tabela */
+    #globalAttendanceTableBody,
+    #globalAttendanceTableBody tr,
+    #globalAttendanceTableBody td {
+        display: block;
+        width: 100%;
+    }
+
+    /* Esconde cabeçalho antigo */
+    #globalAttendanceTableBody .no-mobile {
+        display: none;
+    }
+
+    /* Linha azul da reunião */
+    #globalAttendanceTableBody .meeting-row {
+        background: #e8f0fe;
+        padding: 12px;
+        font-weight: bold;
+        color: #1a73e8;
+        border-radius: 10px;
+        margin-bottom: 10px;
+    }
+
+    /* Cards dos membros */
+    #globalAttendanceTableBody tr:not(.meeting-row):not(.no-mobile) {
+        background: white;
+        margin-bottom: 15px;
+        padding: 12px;
+        border-radius: 12px;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.05);
+        border-left: 4px solid #1a73e8;
+    }
+
+    #globalAttendanceTableBody tr:not(.meeting-row):not(.no-mobile) td {
+        display: flex;
+        justify-content: space-between;
+        padding: 6px 0;
+        font-size: 14px;
+        border: none;
+    }
+
+    #globalAttendanceTableBody tr:not(.meeting-row):not(.no-mobile) td::before {
+        content: attr(data-label);
+        font-weight: bold;
+        color: #5f6368;
+    }
+
 }

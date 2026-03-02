@@ -8,386 +8,765 @@
     <link rel="icon" type="image/x-icon" href="/lib/LogoBranco.png">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#1a73e8">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Logística">
     <link rel="apple-touch-icon" href="/lib/LogoBranco.png">
     <style>
-        /* Novos estilos para os cards de Marketing */
-        .mkt-card:hover { transform: translateY(-8px); box-shadow: 0 12px 25px rgba(0,0,0,0.1) !important; border-color: var(--primary) !important; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .mkt-container { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; padding: 0 20px; }
-        @media (max-width: 600px) { .mkt-container { grid-template-columns: 1fr; } }
-        @media (max-width: 600px) {
-            .mkt-container {
-                grid-template-columns: 1fr; /* Coluna única em telemóveis */
-                gap: 15px;
-            }
-            
-            .mkt-card {
-                padding: 25px !important; /* Menos padding para ganhar espaço vertical */
-            }
+        /* ESTILO ORIGINAL DOS CARDS */
+        .mkt-container { 
+            display: grid; 
+            grid-template-columns: repeat(2, 1fr); 
+            gap: 25px; 
+            padding: 20px; 
+            max-width: 900px;
+            margin: 0 auto;
         }
 
-        /* DESIGN MELHORADO DOS BOTÕES DE LOGÍSTICA */
-        .action-btn { 
-            padding: 8px 14px; 
-            border-radius: 8px; 
-            border: none; 
-            color: white; 
-            cursor: pointer; 
-            font-size: 11px; 
-            font-weight: 700;
-            margin-right: 6px;
-            margin-bottom: 6px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            display: inline-flex;
+        .mkt-card {
+            background: white;
+            padding: 40px; /* Padding generoso para o card ser grande */
+            border-radius: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            cursor: pointer;
+            border: 1px solid #eee;
+            text-align: center;
+            transition: all 0.3s ease;
+            min-height: 220px; /* Altura mínima para não encolher */
+            display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
         }
-        .action-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); opacity: 0.9; }
-        .btn-accept { background: linear-gradient(135deg, #f29900 0%, #e68a00 100%); }
-        .btn-complete { background: linear-gradient(135deg, #188038 0%, #13692e 100%); }
-        .btn-reject { background: linear-gradient(135deg, #d93025 0%, #b3261e 100%); }
-        .btn-info { background: linear-gradient(135deg, #5f6368 0%, #3c4043 100%); margin-right: 10px; }
+
+        .mkt-card:hover { 
+            transform: translateY(-8px); 
+            box-shadow: 0 12px 25px rgba(0,0,0,0.1) !important; 
+            border-color: var(--primary) !important; 
+        }
+        #justificationModal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(4px); /* Efeito de vidro atrás */
+            z-index: 9999;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-content {
+            background: white;
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 450px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+
+        .modal-content h3 { margin-bottom: 20px; color: #202124; }
+
+        .modal-content textarea {
+            width: 100%;
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid #ddd;
+            font-family: inherit;
+            resize: none;
+            margin-bottom: 20px;
+}
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+
+        .attendance-content { display: none; }
+        .attendance-content.active { display: block; }
+
+        @media (max-width: 768px) {
+            .table-container {
+                overflow-x: auto;
+                display: block;
+            }
+            /* Estilo de "Card" para telemóvel para não perder info */
+            #globalAttendanceTableBody tr {
+                display: block;
+                margin-bottom: 15px;
+                border: 1px solid #eee;
+                border-radius: 8px;
+                padding: 10px;
+            }
+            #globalAttendanceTableBody td {
+                display: flex;
+                justify-content: space-between;
+                padding: 8px 5px;
+                border: none;
+            }
+            #globalAttendanceTableBody td::before {
+                content: attr(data-label);
+                font-weight: bold;
+                color: #1a73e8;
+            }
+                .mkt-container {
+        grid-template-columns: 1fr;   /* 1 card por linha */
+        gap: 18px;
+        padding: 10px;
+    }
+
+    .mkt-card {
+        padding: 25px;
+        min-height: auto;
+        border-radius: 18px;
+    }
+
+    .mkt-card h3 {
+        font-size: 16px;
+    }
+
+    .mkt-card p {
+        font-size: 12px;
+    }
+
+    #marketingArea h2 {
+        font-size: 20px;
+        margin-bottom: 25px;
+    }
+        }        
+        .action-btn { padding: 8px 14px; border-radius: 8px; border: none; color: white; cursor: pointer; font-size: 11px; font-weight: 700; transition: all 0.2s ease; }
+        .btn-confirm { background: #1a73e8; color: white; flex: 2; }
+        .btn-cancel { background: #f1f3f4; color: #5f6368; flex: 1; }
+        .modal-buttons { display: flex; gap: 10px; }
+        .btn-reject { background: #d93025; }
+        .btn-info { background: #5f6368; }
+
+        .attendance-card { background: white; padding: 20px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; border-left: 5px solid #eee; }
+        .status {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            display: inline-block;
+        }
+
+        .status-presente { background: #e6f4ea; color: #1e8e3e; }
+        .status-falta_injustificada { background: #fce8e6; color: #d93025; }
+        .status-falta_justificada { background: #e8f0fe; color: #1a73e8; }
+        .status-pendente_justificacao { background: #fef7e0; color: #f29900; }
+        .tabs-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+        .tab-btn {
+            padding: 10px 20px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-weight: bold;
+            color: #5f6368;
+            transition: all 0.3s;
+        }
+        .tab-btn.active {
+            color: #1a73e8;
+            border-bottom: 3px solid #1a73e8;
+        }
+        .attendance-content { display: none; animation: fadeIn 0.3s ease; }
+        .attendance-content.active { display: block; }
+
+        /* Estilo para o ranking de turnos */
+        .stats-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            border-left: 5px solid #1a73e8;
+        }
+        .badge-turnos {
+            background: #1a73e8;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+        .tab-btn.active { 
+            color: #1a73e8; 
+            border-bottom: 3px solid #1a73e8; 
+            font-weight: bold;
+        }
+        #attendanceView {
+            width: 100% !important;
+            display: none; /* O JS controla a exibição */
+        }
+
+        .card-wide {
+            max-width: 1200px !important;
+            width: 95% !important;
+        }
+    
     </style>
 </head>
 <body>
     <div class="card">
         <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px;">
             <h2 id="welcomeName">Olá...</h2>
-            
-            <div style="display: flex; align-items: center; gap: 15px;">
-                <div class="user-menu">
-                    <div class="avatar-bubble" onclick="toggleMenu()" id="userAvatar">
-                        <span id="userInitial">U</span>
+            <div class="user-menu">
+               <div class="avatar-bubble" onclick="toggleMenu()" id="userAvatar">
+                     <span id="userInitial">U</span> </div>
+                <div id="avatarDropdown" class="dropdown-content">
+                    <div style="padding: 10px; border-bottom: 1px solid #eee;">
+                        <strong id="menuName">Nome</strong><br>
+                        <small id="menuDept">Departamento</small>
                     </div>
-                    
-                    <div id="avatarDropdown" class="dropdown-content">
-                        <div style="padding: 10px; border-bottom: 1px solid #eee;">
-                            <strong id="menuName">Nome</strong><br>
-                            <small id="menuDept" style="color: #70757a;">Departamento</small>
-                        </div>
-                        <a href="/profile.html">⚙️ Editar Perfil</a>
-                        
-                        <a href="/admin.html" id="adminLink" style="display:none; font-weight:bold; color:var(--primary);">👥 Gerir Utilizadores</a>
-                        
-                        <a href="#" onclick="logout()" style="color: var(--danger);">🚪 Sair</a>
-                    </div>
+                    <a href="/profile.html">⚙️ Editar Perfil</a>
+                    <a href="/admin.html" id="adminLink" style="display:none; font-weight:bold; color:var(--primary);">👥 Gerir Utilizadores</a>
+                    <a href="#" onclick="logout()" style="color: var(--danger);">🚪 Sair</a>
                 </div>
             </div>
         </header>
 
-        <div id="marketingArea" style="display: none; margin: 60px auto; max-width: 800px; animation: fadeIn 0.5s ease;">
+        <div id="marketingArea" style="display: none; margin: 40px auto; max-width: 800px; animation: fadeIn 0.5s ease;">
             <h2 style="text-align: center; color: #202124; margin-bottom: 40px; font-weight: 500;">O que pretendes fazer hoje?</h2>
             <div class="mkt-container">
-                <div onclick="showMktRequests()" class="mkt-card" style="background: white; padding: 40px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.3s ease; border: 1px solid #eee; text-align: center;">
+                <div id="btn-requisicao" onclick="showMktRequests()" class="mkt-card">
                     <div style="font-size: 40px; margin-bottom: 15px;">📋</div>
                     <h3 style="color: var(--primary); margin: 0;">Fazer Requisição</h3>
-                    <p style="color: #70757a; font-size: 14px; margin-top: 10px;">Criar novo pedido de logística para eventos.</p>
+                    <p style="color: #70757a; font-size: 13px; margin-top: 10px;">Criar novo pedido de logística para eventos.</p>
                 </div>
-                <div onclick="window.location.href='/upload-galeria.html'" class="mkt-card" style="background: white; padding: 40px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.3s ease; border: 1px solid #eee; text-align: center;">
+
+                <div id="btn-upload" onclick="window.location.href='/upload-galeria.html'" class="mkt-card">
                     <div style="font-size: 40px; margin-bottom: 15px;">📸</div>
                     <h3 style="color: #28a745; margin: 0;">Upload Galeria</h3>
-                    <p style="color: #70757a; font-size: 14px; margin-top: 10px;">Adicionar novas fotos à galeria pública.</p>
+                    <p style="color: #70757a; font-size: 13px; margin-top: 10px;">Adicionar novas fotos à galeria pública.</p>
                 </div>
-                <div onclick="window.location.href='/gestao-galeria.html'" class="mkt-card" style="background: white; padding: 40px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.3s ease; border: 1px solid #eee; text-align: center;">
+
+                <div id="btn-gestao" onclick="window.location.href='/gestao-galeria.html'" class="mkt-card">
                     <div style="font-size: 40px; margin-bottom: 15px;">⚙️</div>
                     <h3 style="color: #5f6368; margin: 0;">Gerir Galeria</h3>
                     <p style="color: #70757a; font-size: 14px; margin-top: 10px;">Visualizar, organizar e apagar álbuns antigos.</p>
                 </div>
-                <div onclick="openPublicGallery()" class="mkt-card" style="background: white; padding: 40px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.3s ease; border: 1px solid #eee; text-align: center;">
+
+                <div id="btn-galeria-publica" onclick="openPublicGallery()" class="mkt-card">
                     <div style="font-size: 40px; margin-bottom: 15px;">🌐</div>
                     <h3 style="color: #1a73e8; margin: 0;">Ver Galeria Pública</h3>
                     <p style="color: #70757a; font-size: 14px; margin-top: 10px;">Abrir a galeria como os sócios a veem.</p>
                 </div>
-            </div>
-        </div>
 
-        <div id="nucleoArea" style="display: none; margin: 60px auto;max-width: 800px; animation: fadeIn 0.5s ease;">
-            <h2 style="text-align: center; color: #202124; margin-bottom: 40px; font-weight: 500;">O que pretendes fazer hoje?</h2>
-            <div class ="mkt-container">
-                <div onclick="showMktRequests()" class="mkt-card" style="background: white; padding: 40px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.3s ease; border: 1px solid #eee; text-align: center;">
-                    <div style="font-size: 40px; margin-bottom: 15px;">📋</div>
-                    <h3 style="color: var(--primary); margin: 0;">Fazer Requisição</h3>
-                    <p style="color: #70757a; font-size: 14px; margin-top: 10px;">Criar novo pedido de logística para eventos.</p>
+                <div id="btn-turnos" onclick="window.location.href='/turnos.html'" class="mkt-card">
+                    <div style="font-size: 40px; margin-bottom: 15px;">⏰</div>
+                    <h3 style="color: #7b1fa2; margin: 0;">Marcação de Turnos</h3>
+                    <p style="color: #70757a; font-size: 13px; margin-top: 10px;">Inscreve-te nos turnos disponíveis para eventos.</p>
                 </div>
-                    <div onclick="openPublicGallery()" class="mkt-card" style="background: white; padding: 40px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.3s ease; border: 1px solid #eee; text-align: center;">
-                    <div style="font-size: 40px; margin-bottom: 15px;">🌐</div>
-                    <h3 style="color: #1a73e8; margin: 0;">Ver Galeria Pública</h3>
-                    <p style="color: #70757a; font-size: 14px; margin-top: 10px;">Abrir a galeria como os sócios a veem.</p>
+
+                <div id="btn-assiduidade" onclick="showAttendanceArea()" class="mkt-card">
+                    <div style="font-size: 40px; margin-bottom: 15px;">📝</div>
+                    <h3 style="color: #d93025; margin: 0;">Assiduidade</h3>
+                    <p style="color: #70757a; font-size: 13px; margin-top: 10px;">Gere faltas da equipa ou consulta o teu resumo.</p>
                 </div>
             </div>
         </div>
 
-        <section id="coordArea" style="display: none; border-bottom: 2px solid #f1f3f4; padding-bottom: 30px; margin-bottom: 30px;">
-            <div id="mktBackHeader" style="display: none; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 style="margin: 0;">Novo Pedido de Logística</h3>
-                <button onclick="backToMktMenu()" style="background: none; color: #5f6368; border: 1px solid #dadce0; padding: 8px 16px; font-size: 13px; border-radius: 8px; cursor: pointer;">← Voltar ao Menu</button>
+        <section id="coordArea" style="display: none; animation: fadeIn 0.3s ease;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3>Novo Pedido de Logística</h3>
+                <button onclick="backToMenu()" style="padding: 8px 16px; border-radius: 8px; cursor: pointer;">← Voltar ao Menu</button>
             </div>
-            <h3 id="standardCoordTitle">Novo Pedido de Logística</h3>
             
-            <p style="font-size: 13px; color: #1a73e8; margin-top: -10px;">
-                Departamento: <strong id="autoDept">---</strong>
-            </p>
+            <p style="font-size: 13px; color: #1a73e8; margin-bottom: 20px;">Departamento: <strong id="autoDept">---</strong></p>
             
             <div class="form-grid">
-                <div>
-                    <label>Tipo de Serviço</label>
-                    <select id="service">
-                        <option value="Logística de Eventos">Logística de Eventos</option>
-                        <option value="Inventário">Inventário</option>
-                        <option value="Marcação de Turnos">Marcação de Turnos</option>
-                    </select>
-                </div>
-                <div><label>Nome do Evento</label><input type="text" id="evName" placeholder="Ex: Gala AEF CUP"></div>
-                <div><label>Data do Evento</label><input type="date" id="evDate"></div>
-                <div><label>Título Curto</label><input type="text" id="title" placeholder="Ex: Requisição de Som"></div>
+                <div><label>Serviço</label><select id="service"><option value="Logística de Eventos">Logística de Eventos</option><option value="Inventário">Inventário</option></select></div>
+                <div><label>Evento</label><input type="text" id="evName"></div>
+                <div><label>Data</label><input type="date" id="evDate"></div>
+                <div><label>Título</label><input type="text" id="title"></div>
             </div>
+            <textarea id="desc" rows="3" placeholder="Descrição..."></textarea>
+            <textarea id="obs" rows="2" placeholder="Observações..."></textarea>
+            <button onclick="submitReq()" id="btnSubmit" style="width: 100%; margin: 20px 0;">Enviar Pedido</button>
 
-            <label>Descrição</label>
-            <textarea id="desc" rows="3" placeholder="Descreva o que é necessário..."></textarea>
-            
-            <label>Observações</label>
-            <textarea id="obs" rows="2" placeholder="Notas adicionais..."></textarea>
-
-            <button onclick="submitReq()" id="btnSubmit" style="margin-top: 10px; width: 100%;">Enviar Pedido para Logística</button>
-        </section>
-
-        <section id="statsArea" style="display: none; flex-direction: column; gap: 20px; margin-bottom: 30px;">
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px;">
-                <div class="card" style="text-align: center; border-top: 4px solid #1a73e8; padding: 15px;">
-                    <h4 style="margin: 0; color: #70757a;">Pendentes</h4>
-                    <h2 id="statPending" style="margin: 10px 0; color: #1a73e8;">0</h2>
-                </div>
-                <div class="card" style="text-align: center; border-top: 4px solid #f9ab00; padding: 15px;">
-                    <h4 style="margin: 0; color: #70757a;">Em Curso</h4>
-                    <h2 id="statAccepted" style="margin: 10px 0; color: #f9ab00;">0</h2>
-                </div>
-                <div class="card" style="text-align: center; border-top: 4px solid #188038; padding: 15px;">
-                    <h4 style="margin: 0; color: #70757a;">Concluídos</h4>
-                    <h2 id="statCompleted" style="margin: 10px 0; color: #188038;">0</h2>
-                </div>
-            </div>
-            <div class="card" style="padding: 20px;">
-                <h3 style="margin-top: 0; font-size: 16px;">Distribuição por Departamento</h3>
-                <div id="deptStatsList" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;"></div>
+            <hr>
+            <h4>📋 Teu Histórico de Pedidos</h4>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Dept</th><th>Pedido</th><th>Evento</th><th>Estado</th><th>Ações</th></tr></thead>
+                    <tbody id="reqTable"></tbody>
+                </table>
             </div>
         </section>
 
-        <div id="logisticsFilter" style="display: none; margin-bottom: 25px; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #1a73e8;">
-            <label style="font-weight: bold; margin-right: 10px;">🔍 Filtrar por Departamento:</label>
-            <select id="deptFilter" onchange="filterData()" style="width: auto; margin: 0;">
-                <option value="ALL">Todos os Departamentos</option>
-                <option value="Núcleo de Gestão">Núcleo de Gestão</option>
-                <option value="Apoio ao Estudante">Apoio ao Estudante</option>
-                <option value="Desportivo">Desportivo</option>
-                <option value="Emprego e Formação">Emprego e Formação</option>
-                <option value="Intervenção Social e Sustentabilidade">Intervenção Social e Sustentabilidade</option>
-                <option value="Marketing">Marketing</option>
-                <option value="Recreativo e Cultural">Recreativo e Cultural</option>
-            </select>
-        </div>
+        <section id="attendanceView" style="display: none; animation: fadeIn 0.3s ease;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3>Controlo de Assiduidade</h3>
+                <button onclick="backToMenu()" style="padding: 8px 16px; border-radius: 8px; cursor: pointer;">← Voltar ao Menu</button>
+            </div>
 
-        <h3 id="historyTitle">Histórico de Pedidos</h3>
-        <div class="table-container" id="historyTableContainer">
-            <table>
-                <thead><tr><th>Dept</th><th>Pedido</th><th>Evento</th><th>Estado</th><th>Ações</th></tr></thead>
-                <tbody id="reqTable"></tbody>
-            </table>
-        </div>
+            <div class="tabs-container" style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #eee;">
+                <button id="btnTabHist" class="tab-btn active" onclick="switchTab('historico')">Histórico de Equipa</button>
+                <button id="btnTabStats" class="tab-btn" onclick="switchTab('estatisticas')">Estatísticas (Turnos)</button>
+            </div>
+
+            <div id="tab-historico" class="attendance-content active">
+                <div id="memberAttendanceStatus" style="display: none; margin-bottom: 30px;">
+                    <div class="card" style="border-left: 5px solid #d93025; padding: 20px;">
+                        <p>Total de faltas injustificadas: <strong id="memberAbsencesCount" style="color: #d93025; font-size: 24px;">0</strong></p>
+                        <div id="absencesList"></div>
+                    </div>
+                </div>
+
+                <div id="coordAttendanceSection" style="display: none;">
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                        <div class="form-grid">
+                            <input type="text" id="meetingTitle" placeholder="Título da Reunião">
+                            <input type="date" id="meetingDate">
+                        </div>
+                        <button onclick="carregarMembrosParaFaltas()" style="width:100%; margin-top:10px;">Listar Membros</button>
+                        
+                        <div id="listarMembrosFaltas" style="display:none; margin-top:20px;">
+                            <table style="width:100%; border-collapse: collapse;">
+                                <thead><tr style="text-align: left; font-size: 12px; color: #5f6368;"><th>Membro</th><th>Estado</th><th>Obs</th></tr></thead>
+                                <tbody id="attendanceTableBody"></tbody>
+                            </table>
+                            <button onclick="submeterFaltas()" style="width:100%; background:#d93025; color: white; margin-top:15px; padding: 10px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold;">Gravar Faltas</button>
+                        </div>
+                    </div>
+
+                    <h4>Histórico da Equipa</h4>
+                    <div class="table-container">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tbody id="globalAttendanceTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-estatisticas" class="attendance-content" style="display: none;">
+                <div style="margin-bottom: 20px;">
+                    <h4>Ranking de Presença</h4>
+                    <p style="font-size: 13px; color: #5f6368;">Membros com mais turnos/presenças confirmadas.</p>
+                </div>
+                <div id="statsContainer"></div>
+            </div>
+        </section>
     </div>
 
-    <div id="detailsModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
-        <div style="background:white; margin:10% auto; padding:30px; border-radius:12px; max-width:600px; position:relative;">
-            <span onclick="closeModal()" style="position:absolute; right:20px; top:15px; cursor:pointer; font-size:24px;">&times;</span>
-            <h2 id="mTitle">Detalhes</h2>
-            <p><strong>Evento:</strong> <span id="mEvent"></span></p>
-            <p><strong>Data:</strong> <span id="mDate"></span></p>
-            <p><strong>Descrição:</strong></p>
-            <div id="mDesc" style="background:#f9f9f9; padding:15px; border-radius:8px; font-size:14px;"></div>
-            <button onclick="closeModal()" style="width:100%; margin-top:20px; background:#5f6368;">Fechar</button>
+    <div id="justificationModal">
+        <div class="modal-content">
+            <h3>Justificar Falta</h3>
+            <p style="font-size: 14px; color: #5f6368; margin-bottom: 15px;">Explica brevemente o motivo da tua ausência.</p>
+            <input type="hidden" id="absenceIdToJustify">
+            <textarea id="justificationText" rows="4" placeholder="Escreve aqui o teu motivo..."></textarea>
+            <div class="modal-buttons">
+                <button class="action-btn btn-cancel" onclick="fecharModal()">Cancelar</button>
+                <button class="action-btn btn-confirm" onclick="enviarJustificacao()">Enviar Justificação</button>
+            </div>
         </div>
     </div>
 
 <script>
-    const userData = localStorage.getItem('user');
-    if (!userData) window.location.href = "/";
-    const user = JSON.parse(userData);
-    let allReqs = [];
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) window.location.href = "/";
 
-    // INICIALIZAÇÃO
-    window.onload = () => {
-        if (user) {
-            document.getElementById('welcomeName').innerText = `Olá, ${user.name}`;
-            document.getElementById('menuName').innerText = user.name;
-            document.getElementById('menuDept').innerText = user.department;
-            updateAvatar();
+window.onload = () => {
+    if (!user) { window.location.href = "/"; return; }
 
-            const role = user.role.toUpperCase();
-            if (role === 'LOGISTICA' || role === 'ADMIN') {
-                document.getElementById('statsArea').style.display = 'flex';
-                document.getElementById('logisticsFilter').style.display = 'block';
-                document.getElementById('marketingArea').style.display = 'block'; 
-                document.getElementById('adminLink').style.display = 'block';
-            } else {
-                if (user.department === 'Marketing') {
-                    document.getElementById('marketingArea').style.display = 'block';
-                    document.getElementById('coordArea').style.display = 'none';
-                    toggleMarketingElements(false);
-                } else if (user.department === 'Núcleo de Gestão'){
-                    document.getElementById('nucleoArea').style.display = 'block';
-                    document.getElementById('coordArea').style.display = 'none';
-                    toggleMarketingElements(false);
-                } else {
-                    document.getElementById('coordArea').style.display = 'block';
-                }
-                document.getElementById('autoDept').innerText = user.department;
-            }
-            loadData();
+    document.getElementById('welcomeName').innerText = `Olá, ${user.name}`;
+    document.getElementById('menuName').innerText = user.name;
+    document.getElementById('menuDept').innerText = user.department;
+    document.getElementById('userInitial').innerText = user.name.charAt(0).toUpperCase();
+    updateAvatar();
+
+    const role = user.role.toUpperCase();
+    const dept = user.department;
+
+    // Lógica de Botões do Menu Principal
+    const deptsPrivilegiados = ['Marketing', 'Logística', 'Núcleo', 'Direção'];
+    const temAcessoTotal = deptsPrivilegiados.includes(dept) || role === 'ADMIN';
+
+    document.getElementById('marketingArea').style.display = 'block';
+
+    if (temAcessoTotal) {
+        mostrarBotoes(['btn-requisicao', 'btn-upload', 'btn-gestao', 'btn-galeria-publica', 'btn-turnos', 'btn-assiduidade']);
+    } else if (role === 'COORDENADOR') {
+        mostrarBotoes(['btn-requisicao', 'btn-galeria-publica', 'btn-turnos', 'btn-assiduidade']);
+        esconderBotoes(['btn-upload', 'btn-gestao']);
+    } else {
+        mostrarBotoes(['btn-turnos', 'btn-assiduidade']);
+        esconderBotoes(['btn-requisicao', 'btn-upload', 'btn-gestao', 'btn-galeria-publica']);
+    }
+
+    // ESCONDER ABA DE ESTATÍSTICAS PARA MEMBROS
+    if (role === 'MEMBRO') {
+        document.getElementById('btnTabStats').style.display = 'none';
+    }
+
+    if (role === 'ADMIN' || role === 'LOGISTICA') {
+        document.getElementById('adminLink').style.display = 'block';
+    }
+
+    loadData();
+};
+
+    function showMktRequests() {
+        document.getElementById('marketingArea').style.display = 'none';
+        document.getElementById('coordArea').style.display = 'block';
+    }
+
+    function showAttendanceArea() {
+        // Esconde o menu
+        document.getElementById('marketingArea').style.display = 'none';
+        
+        // Mostra a assiduidade
+        const view = document.getElementById('attendanceView');
+        view.style.display = 'block';
+        
+        // Alarga o contentor principal
+        document.querySelector('.card').classList.add('card-wide');
+        
+        const role = user.role.toUpperCase();
+
+        if (role === 'MEMBRO') {
+            // MOSTRA a parte do membro
+            document.getElementById('memberAttendanceStatus').style.display = 'block';
+            loadMemberAttendance();
+        } else {
+            // MOSTRA a parte do coordenador
+            document.getElementById('coordAttendanceSection').style.display = 'block';
+            carregarListaGlobalFaltas();
         }
-    };
+    }
 
-    // FUNÇÃO DE ENVIO
+    function mostrarBotoes(ids) {
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'flex';
+    });
+}
+
+function esconderBotoes(ids) {
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+}
+    function backToMenu() {
+        document.getElementById('coordArea').style.display = 'none';
+        document.getElementById('attendanceView').style.display = 'none';
+        document.getElementById('marketingArea').style.display = 'block';
+    }
+
+    async function loadData() {
+        const r = await fetch(`/api/requests/list?userId=${user.id}&role=${user.role}`);
+        const data = await r.json() || [];
+        document.getElementById('reqTable').innerHTML = data.map(i => `
+            <tr>
+                <td data-label="Dept"><strong>${i.department}</strong></td>
+                <td data-label="Pedido">${i.title}</td>
+                <td data-label="Estado"><span class="status status-${i.status.toLowerCase()}">${i.status}</span></td>
+                <td><span class="status status-${i.status.toLowerCase()}">${i.status}</span></td>
+                <td><button class="action-btn btn-info" onclick='alert("DESC: ${i.description}")'>Info</button></td>
+            </tr>
+        `).join('');
+    }
+
+async function carregarListaGlobalFaltas() {
+    try {
+        const res = await fetch(`/api/attendance/admin-list?dept=${encodeURIComponent(user.department)}`);
+        const data = await res.json() || [];
+        const tbody = document.getElementById('globalAttendanceTableBody');
+        
+        const role = (user.role || '').toUpperCase().trim();
+        const dept = (user.department || '').toLowerCase().trim();
+        const deptsPrivilegiados = ['marketing', 'logística', 'núcleo', 'direção'];
+
+        // Define quem pode ver os botões de Aceitar/Recusar
+        const podeValidar = role === 'ADMIN' || role === 'COORDENADOR' || deptsPrivilegiados.includes(dept);
+
+        // 1. Agrupar os dados por Reunião + Data
+        const grupos = {};
+        data.forEach(row => {
+            const chave = `${row.title} (${row.date.split('T')[0]})`;
+            if (!grupos[chave]) grupos[chave] = [];
+            grupos[chave].push(row);
+        });
+
+        // 2. Gerar o HTML agrupado
+        let htmlFinal = '';
+        for (const evento in grupos) {
+            // Linha de cabeçalho da reunião (barra azul)
+            htmlFinal += `
+                <tr class="meeting-row">
+                    <td colspan="4" style="padding: 12px; font-weight: bold; color: #1a73e8; border-bottom: 2px solid #1a73e8;">
+                        📅 ${evento}
+                    </td>
+                </tr>
+                <tr class="no-mobile" style="font-size: 11px; color: #5f6368; background: #fafafa; font-weight: bold;">
+                    <td style="padding: 8px;">MEMBRO</td>
+                    <td style="padding: 8px;">ESTADO</td>
+                    <td style="padding: 8px;">OBS / JUSTIFICAÇÃO</td>
+                    <td style="padding: 8px; text-align: center;">AÇÕES</td>
+                </tr>`;
+
+            // Linhas dos Membros
+            grupos[evento].forEach(row => {
+                let botoesHtml = '---';
+                let textoObs = row.obs || '---';
+
+                if (row.status === 'PENDENTE_JUSTIFICACAO') {
+                    textoObs = `<div style="color:#f29900;"><strong>Justificação:</strong> ${row.obs}</div>`;
+                    if (podeValidar) {
+                        botoesHtml = `
+                            <div style="display:flex; gap:5px; justify-content:center;">
+                                <button onclick="validarJustificacao(${row.id}, true)" class="action-btn btn-complete" style="background:#1e8e3e; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">Aceitar</button>
+                                <button onclick="validarJustificacao(${row.id}, false)" class="action-btn btn-reject" style="background:#d93025; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">Recusar</button>
+                            </div>`;
+                    }
+                }
+
+                                // O 'data-label' é o que permite ver a info no telemóvel
+                htmlFinal += `
+                    <tr style="border-bottom: 1px solid #eee;">
+                        <td data-label="Membro" style="padding: 12px;">
+                            <strong>${row.name}</strong>
+                        </td>
+                        <td data-label="Estado" style="padding: 12px;">
+                            <span class="status status-${row.status.toLowerCase()}">
+                                ${row.status.replace(/_/g, ' ')}
+                            </span>
+                        </td>
+                        <td data-label="Obs" style="padding: 12px; font-size: 12px;">
+                            ${textoObs}
+                        </td>
+                        <td data-label="Ações" style="padding: 12px; text-align: center;">
+                            ${botoesHtml}
+                        </td>
+                    </tr>`;
+            });
+        }
+        
+        tbody.innerHTML = htmlFinal || '<tr><td colspan="4" style="text-align:center; padding:20px;">Sem registos de assiduidade.</td></tr>';
+    } catch (err) {
+        console.error("Erro ao carregar lista:", err);
+    }
+}
+
+    async function loadMemberAttendance() {
+        const res = await fetch(`/api/attendance/user?userId=${user.id}`);
+        const history = await res.json() || [];
+        
+        document.getElementById('memberAbsencesCount').innerText = 
+            history.filter(a => a.status === 'FALTA_INJUSTIFICADA').length;
+
+        document.getElementById('absencesList').innerHTML = history.map(a => `
+            <div class="attendance-card">
+                <div>
+                    <strong>${a.title}</strong><br>
+                    <small>${a.date}</small><br>
+                    <span class="status-${a.status.toLowerCase()}">${a.status.replace(/_/g, ' ')}</span>
+                </div>
+                ${a.status === 'FALTA_INJUSTIFICADA' ? 
+                    `<button onclick="abrirModalJustificacao(${a.id})" class="action-btn btn-info">Justificar</button>` 
+                    : ''}
+            </div>
+        `).join('');
+    }
+
     async function submitReq() {
-        const reqData = {
-            title: document.getElementById('title').value,
-            description: document.getElementById('desc').value,
-            authorId: user.id,
-            department: user.department,
+        const data = {
             serviceType: document.getElementById('service').value,
             eventName: document.getElementById('evName').value,
             eventDate: document.getElementById('evDate').value,
-            observations: document.getElementById('obs').value
+            title: document.getElementById('title').value,
+            description: document.getElementById('desc').value,
+            observations: document.getElementById('obs').value,
+            authorId: user.id, department: user.department
         };
+        const res = await fetch('/api/requests', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+        if (res.ok) location.reload();
+    }
 
-        if (!reqData.title || !reqData.eventName) {
-            alert("Por favor, preencha o título e o nome do evento.");
+    async function carregarMembrosParaFaltas() {
+        const res = await fetch(`/api/attendance/members?dept=${encodeURIComponent(user.department)}`);
+        const membros = await res.json() || [];
+        document.getElementById('attendanceTableBody').innerHTML = membros.map(m => `
+            <tr><td>${m.name}</td><td><select id="status-${m.id}"><option value="PRESENTE">Presente</option><option value="FALTA_INJUSTIFICADA">Falta</option></select></td><td><input type="text" id="obs-${m.id}"></td></tr>
+        `).join('');
+        document.getElementById('listarMembrosFaltas').style.display = 'block';
+    }
+
+    async function submeterFaltas() {
+        const records = Array.from(document.querySelectorAll('#attendanceTableBody tr')).map(row => ({
+            userId: parseInt(row.querySelector('select').id.replace('status-', '')),
+            status: row.querySelector('select').value,
+            obs: row.querySelector('input').value
+        }));
+        await fetch('/api/attendance/save', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ title: document.getElementById('meetingTitle').value, date: document.getElementById('meetingDate').value, records }) });
+        location.reload();
+    }
+
+    function abrirModalJustificacao(id) {
+        document.getElementById('absenceIdToJustify').value = id;
+        document.getElementById('justificationModal').style.display = 'block';
+        document.getElementById('justificationText').value = ""; // Limpa o texto anterior
+    }
+    function fecharModal() {
+        document.getElementById('justificationModal').style.display = 'none';
+    }
+
+async function enviarJustificacao() {
+    const id = document.getElementById('absenceIdToJustify').value;
+    const reason = document.getElementById('justificationText').value;
+
+    if (!reason.trim()) {
+        alert("Por favor, escreve um motivo.");
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/attendance/justify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                absenceId: parseInt(id), 
+                reason: reason 
+            })
+        });
+
+        if (res.ok) {
+            alert("Justificação enviada!");
+            fecharModal();
+            location.reload(); 
+        }
+    } catch (err) {
+        console.error("Erro ao enviar:", err);
+    }
+}
+async function validarJustificacao(id, aceitar) {
+    if (!confirm(aceitar ? "Aceitar esta justificação?" : "Recusar esta justificação?")) return;
+
+    try {
+        const res = await fetch('/api/attendance/validate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                id: parseInt(id), // O Go espera um int
+                accepted: aceitar 
+            })
+        });
+
+        if (res.ok) {
+            alert("Sucesso!");
+            carregarListaGlobalFaltas(); // Atualiza a tabela
+        }
+    } catch (err) {
+        console.error("Erro ao validar:", err);
+    }
+}
+    function updateAvatar() {
+        const avatarDiv = document.getElementById('userAvatar');
+        const initialSpan = document.getElementById('userInitial');
+
+        // Se houver uma foto e ela não for apenas uma string vazia
+        if (user.photo && user.photo.trim() !== '') {
+            // Criamos um elemento de imagem para testar se carrega bem
+            const img = new Image();
+            img.src = user.photo;
+            
+            img.onload = () => {
+                // Se carregar, limpamos o span e pomos a imagem
+                avatarDiv.innerHTML = `<img src="${user.photo}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+            };
+            
+            img.onerror = () => {
+                // Se der erro (imagem partida), voltamos para a inicial
+                mostrarInicial(avatarDiv, initialSpan);
+            };
+        } else {
+            mostrarInicial(avatarDiv, initialSpan);
+        }
+    }
+    function mostrarInicial(div, span) {
+    // Garante que o span é visível e tem a letra correta
+        div.innerHTML = `<span id="userInitial">${user.name.charAt(0).toUpperCase()}</span>`;
+    } 
+    function toggleMenu() { document.getElementById("avatarDropdown").classList.toggle("show"); }
+    function logout() { localStorage.clear(); window.location.href = "/"; }
+    function openPublicGallery() { window.location.href = `/galeria.html?token=aefcup-galeria-2026-xyz`; }
+
+    function switchTab(tabName) {
+        // Esconde todos os conteúdos
+        document.querySelectorAll('.attendance-content').forEach(c => c.style.display = 'none');
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        
+        // Mostra o selecionado
+        document.getElementById(`tab-${tabName}`).style.display = 'block';
+        
+        // Ativa o botão correto
+        if(tabName === 'historico') {
+            document.getElementById('btnTabHist').classList.add('active');
+            carregarListaGlobalFaltas();
+        } else {
+            document.getElementById('btnTabStats').classList.add('active');
+            carregarEstatisticasTurnos();
+        }
+    }
+
+async function carregarEstatisticasTurnos() {
+    try {
+        const role = user.role.toUpperCase();
+        const dept = user.department;
+        
+        // Define se deve ver tudo (Logística/Admin) ou apenas o seu departamento
+        const eLogisticaOuAdmin = (dept === 'Logística' || role === 'ADMIN');
+        const urlFetch = eLogisticaOuAdmin 
+            ? `/api/attendance/admin-list?dept=ALL` // Criamos um caso "ALL" no servidor ou enviamos vazio
+            : `/api/attendance/admin-list?dept=${encodeURIComponent(dept)}`;
+
+        const res = await fetch(urlFetch);
+        const data = await res.json() || [];
+        
+        // Agrupar e contar presenças por membro E departamento
+        const contagem = {};
+        data.forEach(row => {
+            if (row.status === 'PRESENTE') {
+                // Chave única por utilizador para não misturar nomes iguais de depts diferentes
+                const chave = row.name; 
+                if (!contagem[chave]) {
+                    contagem[chave] = { total: 0, dept: row.department || dept };
+                }
+                contagem[chave].total += 1;
+            }
+        });
+
+        const ranking = Object.entries(contagem).sort((a, b) => b[1].total - a[1].total);
+        const container = document.getElementById('statsContainer');
+
+        if (ranking.length === 0) {
+            container.innerHTML = "<p style='text-align:center; padding:20px;'>Nenhum turno registado como 'Presente'.</p>";
             return;
         }
 
-        const btn = document.getElementById('btnSubmit');
-        btn.disabled = true;
-        btn.innerText = "A enviar...";
+        container.innerHTML = `
+            <div style="margin-bottom: 15px; padding: 10px; background: #e8f0fe; border-radius: 8px; font-size: 13px;">
+                <strong>Visão:</strong> ${eLogisticaOuAdmin ? 'Global (Todos os Departamentos)' : 'Departamento ' + dept}
+            </div>
+            ` + ranking.map(([nome, info], index) => `
+            <div class="stats-card" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: white; margin-bottom: 10px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 5px solid #1a73e8;">
+                <div>
+                    <span style="font-weight: bold; color: #1a73e8; margin-right: 10px;">#${index + 1}</span>
+                    <strong>${nome}</strong><br>
+                    <small style="color: #5f6368;">${info.dept}</small>
+                </div>
+                <div style="background: #1a73e8; color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold;">
+                    ${info.total} Turnos
+                </div>
+            </div>
+        `).join('');
 
-        try {
-            const res = await fetch('/api/requests', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(reqData)
-            });
-
-            if (res.ok) {
-                alert("Pedido enviado com sucesso!");
-                location.reload(); 
-            } else {
-                alert("Erro ao enviar pedido.");
-            }
-        } catch (err) {
-            alert("Erro de ligação ao servidor.");
-        } finally {
-            btn.disabled = false;
-            btn.innerText = "Enviar Pedido para Logística";
-        }
+    } catch (err) {
+        console.error("Erro ao carregar estatísticas globais:", err);
     }
+}
 
-    // AÇÕES DE LOGÍSTICA
-    async function updateStatus(id, newStatus) {
-        const res = await fetch('/api/requests/update', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, status: newStatus, role: user.role })
-        });
-        if (res.ok) loadData();
-    }
-
-    // CARREGAMENTO DE DADOS
-    async function loadData() {
-        const r = await fetch(`/api/requests/list?userId=${user.id}&role=${user.role}`);
-        allReqs = await r.json();
-        updateStats(allReqs);
-        filterData();
-    }
-
-    function renderTable(data) {
-        const role = user.role.toUpperCase();
-        const isAdmin = (role === 'ADMIN' || role === 'LOGISTICA');
-
-        document.getElementById('reqTable').innerHTML = data.map(i => {
-            let actions = `<button class="action-btn btn-info" onclick='viewDetails(${JSON.stringify(i)})'>Info</button>`;
-            
-            if (isAdmin) {
-                if (i.status === 'PENDING') {
-                    actions += `<button class="action-btn btn-accept" onclick="updateStatus(${i.id}, 'ACCEPTED')">Aceitar</button>`;
-                    actions += `<button class="action-btn btn-reject" onclick="updateStatus(${i.id}, 'REJECTED')">Recusar</button>`;
-                } else if (i.status === 'ACCEPTED') {
-                    actions += `<button class="action-btn btn-complete" onclick="updateStatus(${i.id}, 'COMPLETED')">Concluir</button>`;
-                }
-            }
-
-            return `<tr>
-                <td><strong>${i.department}</strong></td>
-                <td>${i.title}</td>
-                <td>${i.eventName || 'N/A'}</td>
-                <td><span class="status status-${i.status.toLowerCase()}">${i.status}</span></td>
-                <td style="min-width:180px;">${actions}</td>
-            </tr>`;
-        }).join('');
-    }
-
-    // FUNÇÕES ORIGINAIS
-    function showMktRequests() {
-        document.getElementById('marketingArea').style.display = 'none';
-        document.getElementById('nucleoArea').style.display = 'none'; 
-        document.getElementById('coordArea').style.display = 'block';
-        document.getElementById('mktBackHeader').style.display = 'flex';
-        document.getElementById('standardCoordTitle').style.display = 'none';
-        toggleMarketingElements(true);
-    }
-
-    function backToMktMenu() {
-        document.getElementById('coordArea').style.display = 'none';
-        if (user.department === 'Marketing') document.getElementById('marketingArea').style.display = 'block';
-        else if (user.department === 'Núcleo de Gestão') document.getElementById('nucleoArea').style.display = 'block';
-        toggleMarketingElements(false);
-    }
-
-    function toggleMarketingElements(show) {
-        const val = show ? 'block' : 'none';
-        if (document.getElementById('historyTitle')) document.getElementById('historyTitle').style.display = val;
-        if (document.getElementById('historyTableContainer')) document.getElementById('historyTableContainer').style.display = val;
-    }
-
-    function updateStats(data) {
-        if (user.role.toUpperCase() !== 'LOGISTICA' && user.role.toUpperCase() !== 'ADMIN') return;
-        const s = { PENDING: 0, ACCEPTED: 0, COMPLETED: 0 };
-        data.forEach(r => { if(s[r.status] !== undefined) s[r.status]++; });
-        document.getElementById('statPending').innerText = s.PENDING;
-        document.getElementById('statAccepted').innerText = s.ACCEPTED;
-        document.getElementById('statCompleted').innerText = s.COMPLETED;
-    }
-
-    function filterData() {
-        const val = document.getElementById('deptFilter')?.value || "ALL";
-        renderTable(val === "ALL" ? allReqs : allReqs.filter(r => r.department === val));
-    }
-
-    function viewDetails(i) {
-        document.getElementById('mTitle').innerText = i.title;
-        document.getElementById('mEvent').innerText = i.eventName || '---';
-        document.getElementById('mDate').innerText = i.eventDate || '---';
-        document.getElementById('mDesc').innerText = i.description;
-        document.getElementById('detailsModal').style.display = 'block';
-    }
-
-    function closeModal() { document.getElementById('detailsModal').style.display = 'none'; }
-    function updateAvatar() { const bubble = document.getElementById('userAvatar'); if (user.photo && !user.photo.startsWith('#')) bubble.innerHTML = `<img src="${user.photo}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`; else { bubble.style.backgroundColor = user.photo || 'var(--primary)'; bubble.innerHTML = `<span>${user.name.charAt(0).toUpperCase()}</span>`; } }
-    function toggleMenu() { document.getElementById("avatarDropdown").classList.toggle("show"); }
-    function logout() { localStorage.clear(); window.location.href = "/"; }
-    function openPublicGallery() { window.open(`/galeria.html?token=aefcup-galeria-2026-xyz`, '_blank'); }
 </script>
 </body>
 </html>

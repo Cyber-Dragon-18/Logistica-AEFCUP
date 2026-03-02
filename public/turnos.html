@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestão de Turnos - AEFCUP</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        .shift-table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .shift-table th { background: #d93025; color: white; padding: 12px; text-transform: uppercase; font-size: 13px; }
+        .shift-table td { border: 1px solid #ccc; padding: 10px; text-align: center; }
+        .time-col { background: #ff0000; color: white; font-weight: bold; width: 150px; }
+        .category-label { font-weight: bold; color: #333; }
+        .admin-panel { background: #e8f0fe; padding: 25px; border-radius: 12px; margin-bottom: 30px; border: 1px solid #1a73e8; }
+        .entry-row { display: flex; gap: 10px; margin-bottom: 10px; }
+        .user-tag { display: inline-block; padding: 4px 8px; border-radius: 4px; margin: 2px; font-size: 11px; background: #f1f3f4; border: 1px solid #dadce0; transition: all 0.2s; }
+        .selected-user { background: #e6f4ea; border-color: #188038; color: #188038; font-weight: bold; }
+        @media print { .no-print { display: none; } }
+        .user-tag {
+            cursor: pointer;
+            transition: transform 0.1s ease, background-color 0.2s ease; 
+            user-select: none; 
+        }
+
+        .user-tag:active {
+            transform: scale(0.95); 
+        }
+        .table-container {
+            overflow-x: auto;
+            display: block;
+            width: 100%;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .shift-table {
+            min-width: 800px; /* Garante que a tabela não "esmaga" o texto */
+        }
+
+        .action-btn {
+            padding: 12px 20px !important; /* Botões maiores para dedos */
+            font-size: 14px !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="card" id="exportArea">
+        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;" class="no-print">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 24px;">📅</span>
+                <h2 style="margin:0;">Gestão de Turnos</h2>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button id="btnExport" onclick="exportToPDF()" style="background:#188038; display:none;">📄 Exportar PDF</button>
+                <button onclick="window.location.href='/dashboard.html'" style="background:#5f6368;">Voltar</button>
+            </div>
+        </header>
+
+        <div class="card no-print" id="adminPanel" style="display:none; background: #f8f9fa; border: 2px dashed #1a73e8;">
+            <h3>🛠️ Ferramenta de Desenho de Grelha</h3>
+            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <input type="text" id="eventName" placeholder="Nome do Evento">
+                <input type="date" id="eventDate">
+                <input type="number" id="gridRows" placeholder="Linhas" style="width: 80px;">
+                <input type="number" id="gridCols" placeholder="Colunas" style="width: 80px;">
+                <button onclick="createBlankGrid()" style="background: #1a73e8;">Gerar Tabela Vazia</button>
+            </div>
+            
+            <div id="gridEditorContainer" style="overflow-x: auto;">
+                </div>
+
+            <div style="margin-top: 20px; display: flex; gap: 10px;">
+                <button onclick="saveGrid()" style="background: #28a745; padding: 10px 20px;">🚀 Publicar Grelha Final</button>
+                <button onclick="deleteGrid()" style="background: #d93025;">🗑️ Apagar Tudo</button>
+            </div>
+            <p><small>💡 <b>Dica:</b> Escreve o texto nas células. Dá <b>duplo clique</b> numa célula para a transformar numa vaga de inscrição (ficará azul).</small></p>
+        </div>
+
+        <div id="currentEventHeader" style="text-align:center; margin-bottom:20px;">
+            <h1 id="eventTitle" style="color:#d93025; margin:0;">A carregar turnos...</h1>
+            <p id="eventDate" style="color:#70757a;"></p>
+        </div>
+
+        <table class="shift-table">
+
+            <tbody id="shiftTableBody"></tbody>
+        </table>
+    </div>
+
+    <script>
+        const user = JSON.parse(localStorage.getItem('user'));
+        const isAdmin = user && (user.role.toUpperCase() === 'LOGISTICA' || user.role.toUpperCase() === 'ADMIN');
+
+        if (isAdmin) {
+            document.getElementById('adminPanel').style.display = 'block';
+            document.getElementById('btnExport').style.display = 'block';
+        }
+
+        function addNewSlotRow() {
+            const row = document.createElement('div');
+            row.className = 'entry-row';
+            row.innerHTML = `
+                <input type="text" placeholder="Horário" class="slot-time">
+                <input type="text" placeholder="Categoria" class="slot-cat">
+                <input type="text" placeholder="Posto" class="slot-label">
+                <button onclick="this.parentElement.remove()" style="background:#d93025; border:none; color:white; padding:5px 10px; border-radius:4px; cursor:pointer;">&times;</button>`;
+            document.getElementById('slotsContainer').appendChild(row);
+        }
+
+async function loadShifts() {
+    try {
+        const res = await fetch('/api/shifts/list');
+        const data = await res.json();
+        const tableBody = document.getElementById('shiftTableBody');
+        
+        // 1. Validar se existem dados e atualizar o cabeçalho do evento
+        if (data && data.slots && data.slots.length > 0) {
+            document.getElementById('eventTitle').innerText = data.eventName || "Grelha de Turnos";
+            document.getElementById('eventDate').innerText = data.date ? `Data: ${data.date}` : "";
+        } else {
+            document.getElementById('eventTitle').innerText = "Nenhum Evento Ativo";
+            tableBody.innerHTML = '<tr><td colspan="100%">Aguarde pela publicação da grelha.</td></tr>';
+            return;
+        }
+
+        // 2. Organizar os dados numa matriz (grid[linha][coluna])
+        const grid = [];
+        data.slots.forEach(s => {
+            if (!grid[s.r]) grid[s.r] = [];
+            grid[s.r][s.c] = s;
+        });
+
+        // 3. Gerar o HTML da tabela
+        let html = "";
+        grid.forEach((row, rowIndex) => {
+            html += "<tr>";
+            row.forEach(cell => {
+                if (!cell) return; // Salta se a célula estiver vazia
+
+                const isHeader = rowIndex === 0; // Identifica se é a primeira linha
+                const isSlot = cell.isSlot;
+                const colspan = cell.span || 1;
+
+                // Estilo Dinâmico: Vermelho para o topo, Azul para as vagas
+                let style = `
+                    padding: 12px;
+                    border: 1px solid #ccc;
+                    text-align: center;
+                    ${isHeader ? 'background-color: #d93025; color: white; font-weight: bold; text-transform: uppercase;' : ''}
+                    ${isSlot && !isHeader ? 'background-color: #e8f0fe; border: 2px solid #1a73e8;' : ''}
+                `;
+
+                // Conteúdo da célula
+                let cellContent = "";
+                if (isSlot) {
+                    // Renderiza inscritos e botão se for uma vaga
+                    cellContent = renderSlot(cell);
+                } else {
+                    // Renderiza apenas o texto se for uma etiqueta
+                    cellContent = `<b>${cell.content || ""}</b>`;
+                }
+
+                html += `<td colspan="${colspan}" style="${style}">${cellContent}</td>`;
+            });
+            html += "</tr>";
+        });
+
+        tableBody.innerHTML = html;
+    } catch (e) {
+        console.error("Erro ao carregar turnos:", e);
+        document.getElementById('eventTitle').innerText = "Erro ao carregar";
+    }
+}
+
+// Função auxiliar para desenhar o conteúdo das vagas (Inscritos + Botão)
+function renderSlot(s) {
+    const users = s.users || [];
+    const confirmed = users.filter(u => u.selected);
+    const isEnrolled = users.some(u => u.name === user.name);
+
+    // Se for admin, vê todos com ✅/👆. Se for sócio, vê apenas os confirmados.
+    const displayNames = isAdmin 
+    ? users.map(u => `
+        <div class="user-tag ${u.selected ? 'selected-user' : ''}" 
+             onclick="selectUser(${s.id}, '${u.name}')" style="cursor:pointer;">
+            ${u.name} ${u.selected ? '✅' : '👆'}
+        </div>`).join('')
+    : (confirmed.length > 0 
+        ? confirmed.map(u => `<div class="user-tag selected-user">👤 ${u.name}</div>`).join('') 
+        : "");
+
+    return `
+        <div style="min-height:30px;">${displayNames}</div>
+        <div class="no-print" style="margin-top:5px;">
+            ${!isEnrolled 
+                ? `<button onclick="book(${s.id})" style="font-size:10px; padding:2px 5px; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer;">Inscrever</button>`
+                : `<button onclick="clearEnrollment(${s.id})" style="font-size:10px; padding:2px 5px; background:#5f6368; color:white; border:none; border-radius:4px; cursor:pointer;">Sair</button>`}
+        </div>`;
+}
+
+async function book(id) {
+    // 1. Localizar a célula visualmente antes de enviar o pedido
+    const btn = event.target;
+    const cell = btn.closest('td');
+    const originalContent = cell.innerHTML;
+
+    // 2. Atualização Otimista: Mostrar o nome logo
+    const userTag = `<div class="user-tag">👤 ${user.name} (a guardar...)</div>`;
+    btn.style.display = 'none'; // Esconde o botão temporariamente
+    cell.insertAdjacentHTML('afterbegin', userTag);
+
+    try {
+        const res = await fetch('/api/shifts/book', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ id, userName: user.name }) 
+        });
+
+        if (!res.ok) throw new Error();
+        
+        // 3. Sucesso: Recarregar apenas para limpar o "(a guardar...)"
+        loadShifts(); 
+    } catch (e) {
+        // 4. Erro: Se falhar, volta ao que era antes e avisa o user
+        alert("Erro na inscrição. Tenta novamente.");
+        cell.innerHTML = originalContent;
+    }
+}
+
+        async function clearEnrollment(id) {
+            if(confirm("Desejas remover a tua inscrição deste turno?")) {
+                await fetch('/api/shifts/clear', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id, userName: user.name }) });
+                loadShifts();
+            }
+        }
+
+async function selectUser(slotId, userName) {
+    if (!isAdmin) return;
+
+    // 1. Encontrar a tag visualmente no ecrã
+    const tags = document.querySelectorAll('.user-tag');
+    let targetTag = Array.from(tags).find(t => t.innerText.includes(userName) && t.getAttribute('onclick').includes(slotId));
+
+    if (targetTag) {
+        // 2. Atualização Otimista: Inverter a classe e o ícone localmente
+        const isCurrentlySelected = targetTag.classList.contains('selected-user');
+        targetTag.classList.toggle('selected-user');
+        
+        // Atualiza o ícone (✅ para confirmado, 👆 para em espera)
+        targetTag.innerHTML = isCurrentlySelected 
+            ? `${userName} 👆` 
+            : `${userName} ✅`;
+    }
+
+    try {
+        const res = await fetch('/api/shifts/select-user', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ slotId, userName }) 
+        });
+
+        if (!res.ok) throw new Error();
+        // Não precisamos de reload imediato, o estado visual já está correto
+    } catch (e) {
+        alert("Erro ao salvar seleção. A página vai recarregar.");
+        loadShifts(); // Se falhar, volta ao estado real da BD
+    }
+}
+
+        async function generateCustomGrid() {
+            const name = document.getElementById('shiftEventName').value;
+            const date = document.getElementById('shiftEventDate').value;
+            const slots = Array.from(document.querySelectorAll('.entry-row')).map(r => ({
+                t: r.querySelector('.slot-time').value,
+                c: r.querySelector('.slot-cat').value,
+                l: r.querySelector('.slot-label').value
+            })).filter(s => s.t && s.c && s.l);
+
+            if(!name || slots.length === 0) return alert("Preencha o evento e os postos.");
+
+            const res = await fetch('/api/shifts/generate', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ eventName: name, date, slots }) });
+            if(res.ok) location.reload();
+        }
+
+        async function deleteGrid() {
+            if(!confirm("⚠️ Tens a certeza que queres APAGAR toda a grelha e inscrições?")) return;
+            
+            const res = await fetch('/api/shifts/delete-grid', { 
+                method: 'POST' // O main.go espera um método POST
+            });
+
+            if(res.ok) {
+                alert("Grelha eliminada com sucesso!");
+                location.reload();
+            } else {
+                alert("Erro ao apagar grelha. Verifica a ligação ao servidor.");
+            }
+        }
+
+async function exportToPDF() {
+    // TESTE DE CLICK: Se isto não aparecer, o problema é a cache do browser
+    console.log("Botão clicado!"); 
+
+    const title = document.getElementById('eventTitle').innerText;
+    const dateText = document.getElementById('eventDate').innerText;
+
+    // 1. Criar área de impressão isolada para evitar conflitos de CSS
+    const printArea = document.createElement('div');
+    printArea.style.padding = "20px";
+    printArea.style.background = "white";
+
+    // Cabeçalho do PDF
+    printArea.innerHTML = `
+        <div style="text-align:center; font-family: Arial; margin-bottom: 20px;">
+            <h1 style="color:#d93025; margin:0;">${title}</h1>
+            <p style="color:#555; margin:5px 0 20px 0;">${dateText}</p>
+        </div>
+    `;
+
+    // 2. Capturar a tabela real
+    const originalTable = document.querySelector('.shift-table');
+    if (!originalTable) return alert("Erro: Tabela não encontrada!");
+    
+    const tableClone = originalTable.cloneNode(true);
+    
+    // 3. Limpeza total de botões e ícones
+    tableClone.querySelectorAll('.no-print, button, thead').forEach(el => el.remove());
+    
+    // 4. Limpar nomes (remover ✅, 👆, 👤)
+    tableClone.querySelectorAll('.user-tag').forEach(tag => {
+        const cleanName = tag.innerText.replace(/[✅👆👤]/g, '').trim();
+        tag.parentElement.innerHTML = `<span style="display:block; padding:2px;">${cleanName}</span>`;
+    });
+
+    // 5. Aplicar estilo da primeira linha vermelha
+    const rows = tableClone.querySelectorAll('tr');
+    rows.forEach((row, rowIndex) => {
+        const cells = row.querySelectorAll('td');
+        cells.forEach(cell => {
+            cell.style.border = "1px solid #000";
+            cell.style.padding = "10px";
+            cell.style.textAlign = "center";
+            cell.style.fontSize = "12px";
+            cell.style.fontFamily = "Arial";
+
+            if (rowIndex === 0) {
+                cell.style.backgroundColor = "#d93025";
+                cell.style.color = "#ffffff";
+                cell.style.fontWeight = "bold";
+            } else {
+                cell.style.backgroundColor = "transparent";
+                cell.style.color = "#000000";
+            }
+        });
+    });
+
+    tableClone.style.width = "100%";
+    tableClone.style.borderCollapse = "collapse";
+    printArea.appendChild(tableClone);
+
+    // 6. Configurações de exportação
+    const opt = {
+        margin: 10,
+        filename: `${title.replace(/\s+/g, '_')}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+    };
+
+    // Tentar gerar o PDF
+    try {
+        await html2pdf().set(opt).from(printArea).save();
+    } catch (err) {
+        console.error("Erro no html2pdf:", err);
+        alert("Erro ao gerar PDF. Tenta recarregar a página com Ctrl+F5.");
+    }
+}
+        function createBlankGrid() {
+            const rows = document.getElementById('gridRows').value || 5;
+            const cols = document.getElementById('gridCols').value || 5;
+            let html = '<table id="designTable" class="shift-table" style="cursor: cell;">';
+            
+            for (let r = 0; r < rows; r++) {
+                html += '<tr>';
+                for (let c = 0; c < cols; c++) {
+                   html += `<td contenteditable="true" 
+                data-row="${r}" data-col="${c}" data-type="label" 
+                onclick="if(event.shiftKey) mergeCell(this)"
+                ondblclick="toggleCellMode(this)" 
+                oncontextmenu="event.preventDefault(); clearCell(this);" 
+                style="min-width: 100px; height: 50px; background: white; border: 1px solid #ccc;"></td>`;
+                }
+                html += '</tr>';
+            }
+            html += '</table>';
+            document.getElementById('gridEditorContainer').innerHTML = html;
+        }
+
+        function toggleCellMode(cell) {
+            if (cell.dataset.type === "label") {
+                cell.dataset.type = "slot";
+                cell.style.backgroundColor = "#e8f0fe";
+                cell.style.border = "2px solid #1a73e8";
+                cell.innerHTML = "<b>[ VAGA ]</b>";
+                cell.contentEditable = "false";
+            } else {
+                cell.dataset.type = "label";
+                cell.style.backgroundColor = "white";
+                cell.style.border = "1px solid #ccc";
+                cell.innerHTML = "";
+                cell.contentEditable = "true";
+            }
+        }
+
+        async function saveGrid() {
+            const cells = Array.from(document.querySelectorAll('#designTable td')).map(td => ({
+                r: parseInt(td.dataset.row),
+                c: parseInt(td.dataset.col),
+                content: td.innerText.replace("[ VAGA ]", ""),
+                isSlot: td.dataset.type === "slot"
+            }));
+
+            const payload = {
+                eventName: document.getElementById('eventName').value,
+                date: document.getElementById('eventDate').value,
+                cells: cells
+            };
+
+            const res = await fetch('/api/shifts/save-grid', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            
+        if (res.ok) {
+            localStorage.removeItem('draft_eventName');
+            localStorage.removeItem('draft_eventDate');
+            alert("Grelha publicada com sucesso!");
+        location.reload();
+            }
+        }
+        function clearCell(cell) {
+            if (confirm("Limpar conteúdo desta célula?")) {
+                cell.innerHTML = "";
+                cell.dataset.type = "label";
+                cell.style.backgroundColor = "white";
+                cell.style.border = "1px solid #ccc";
+                cell.contentEditable = "true";
+            }
+        }
+
+        function mergeCell(cell) {
+            const nextCell = cell.nextElementSibling;
+            if (!nextCell) return;
+
+            if (confirm("Mesclar com a célula à direita?")) {
+                const currentSpan = parseInt(cell.colSpan) || 1;
+                const nextSpan = parseInt(nextCell.colSpan) || 1;
+                
+                cell.colSpan = currentSpan + nextSpan;
+                nextCell.remove(); // Remove a célula absorvida
+            }
+        }
+
+        // Monitorizar mudanças no nome e data
+        document.getElementById('eventName').addEventListener('input', (e) => {
+            localStorage.setItem('draft_eventName', e.target.value);
+        });
+
+        document.getElementById('eventDate').addEventListener('change', (e) => {
+            localStorage.setItem('draft_eventDate', e.target.value);
+        });
+
+        // Carregar os rascunhos quando a página abre
+    window.addEventListener('load', () => {
+        const eventNameInput = document.getElementById('eventName');
+        const eventDateInput = document.getElementById('eventDate');
+
+        // Carregar se existir algo guardado
+        if (localStorage.getItem('draft_eventName')) {
+            eventNameInput.value = localStorage.getItem('draft_eventName');
+        }
+        if (localStorage.getItem('draft_eventDate')) {
+            eventDateInput.value = localStorage.getItem('draft_eventDate');
+        }
+
+        // Ouvintes para guardar enquanto escreves
+        eventNameInput.addEventListener('input', () => {
+            localStorage.setItem('draft_eventName', eventNameInput.value);
+        });
+        eventDateInput.addEventListener('change', () => {
+            localStorage.setItem('draft_eventDate', eventDateInput.value);
+        });
+    });
+            loadShifts();
+    </script>
+</body>
+</html>
