@@ -369,7 +369,7 @@
         <div id="modalBody" style="text-align: left; margin-top: 20px;">
             </div>
     </div>
-</div>s
+</div>
 
 <script>
     const user = JSON.parse(localStorage.getItem('user'));
@@ -466,18 +466,19 @@ function esconderBotoes(ids) {
 async function loadData() {
     const r = await fetch(`/api/requests/list?userId=${user.id}&role=${user.role}`);
     const data = await r.json() || [];
+    window._pedidosCache = data;
 
     const role = user.role.toUpperCase();
     const dept = user.department.toLowerCase();
 
-    const deptsPrivilegiados = ['marketing', 'logística', 'núcleo', 'direção'];
+    const deptsPrivilegiados = ['marketing', 'núcleo', 'direção'];
     const podeValidar = role === 'ADMIN' || role === 'COORDENADOR' || deptsPrivilegiados.includes(dept);
 
     document.getElementById('reqTable').innerHTML = data.map(i => {
 
         let botoesHtml = `
             <button class="action-btn btn-info" 
-                onclick='alert("Descrição: ${i.description}")'>
+                onclick="verInfoPedido(${i.id})">
                 Info
             </button>
         `;
@@ -518,7 +519,13 @@ async function loadData() {
         `;
     }).join('');
 }
+function verInfoPedido(id) {
+    const pedidos = window._pedidosCache || [];
+    const pedido = pedidos.find(p => p.id === id);
+    if (!pedido) return;
 
+    alert("Descrição:\n\n" + pedido.description);
+}
 
 async function carregarListaGlobalFaltas() {
     try {
