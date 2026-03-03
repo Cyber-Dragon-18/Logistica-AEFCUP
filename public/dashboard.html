@@ -483,12 +483,12 @@ async function loadData() {
                 if (i.status === 'PENDING') {
                     botoesAcao = `
                         <div style="display:flex; gap:5px; justify-content:center;">
-                            <button class="action-btn" style="background:#188038; color:white;" onclick="updateRequestStatus(${i.id}, 'ACCEPTED')">Aceitar</button>
-                            <button class="action-btn" style="background:#d93025; color:white;" onclick="updateRequestStatus(${i.id}, 'REJECTED')">Recusar</button>
+                            <button class="action-btn" style="background:#188038; color:white;" onclick="updateStatus(${i.id}, 'ACCEPTED')"">Aceitar</button>
+                            <button class="action-btn" style="background:#d93025; color:white;" onclick="updateStatus(${i.id}, 'REJECTED')")">Recusar</button>
                         </div>`;
                 } else if (i.status === 'ACCEPTED') {
                     botoesAcao = `
-                        <button class="action-btn" style="background:#1a73e8; color:white; width:100%;" onclick="updateRequestStatus(${i.id}, 'COMPLETED')">Concluir</button>`;
+                        <button class="action-btn" style="background:#1a73e8; color:white; width:100%;" onclick="updateStatus(${i.id}, 'COMPLETED')">Concluir</button>`;
                 }
             }
 
@@ -509,27 +509,7 @@ async function loadData() {
         document.getElementById('reqTable').innerHTML = '<tr><td colspan="5">Erro ao carregar pedidos.</td></tr>';
     }
 }
-async function updateRequestStatus(id, novoEstado) {
-    if (!confirm(`Desejas marcar este pedido como ${novoEstado}?`)) return;
 
-    try {
-        // Envia para a rota de update que definiste no main.go
-        const res = await fetch('/api/requests/update', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: parseInt(id), status: novoEstado })
-        });
-
-        if (res.ok) {
-            alert("Pedido atualizado!");
-            loadData(); // Recarrega a tabela
-        } else {
-            alert("Erro ao atualizar o estado do pedido.");
-        }
-    } catch (err) {
-        console.error("Erro na comunicação com o servidor:", err);
-    }
-}
 
 async function carregarListaGlobalFaltas() {
     try {
@@ -706,18 +686,34 @@ async function carregarListaGlobalFaltas() {
         modal.style.display = 'block';
     }
 
-        async function updateStatus(id, newStatus) {
-            if (!confirm(`Deseja marcar como ${newStatus}?`)) return;
+    async function updateStatus(id, newStatus) {
+        if (!confirm(`Desejas marcar este pedido como ${newStatus}?`)) return;
+
+        try {
             const res = await fetch('/api/requests/update', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id, status: newStatus })
+                body: JSON.stringify({ 
+                    id: parseInt(id), 
+                    status: newStatus 
+                })
             });
+
             if (res.ok) {
+                alert("Pedido atualizado com sucesso!");
                 fecharModal();
-                loadData(); // Recarrega a tabela de pedidos
+                loadData();
+            } else {
+                const erro = await res.text();
+                console.error("Erro servidor:", erro);
+                alert("Erro ao atualizar o pedido.");
             }
+
+        } catch (err) {
+            console.error("Erro fetch:", err);
+            alert("Erro de comunicação com o servidor.");
         }
+    }
 async function enviarJustificacao() {
     const id = document.getElementById('absenceIdToJustify').value;
     const reason = document.getElementById('justificationText').value;
