@@ -362,6 +362,15 @@
         </div>
     </div>
 
+    <div id="requestModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="fecharModalRequest()">&times;</span>
+        <h2 id="modalTitle">Detalhes da Requisição</h2>
+        <div id="modalBody" style="text-align: left; margin-top: 20px;">
+            </div>
+    </div>
+</div>s
+
 <script>
     const user = JSON.parse(localStorage.getItem('user'));
     if (!user) window.location.href = "/";
@@ -379,7 +388,7 @@ window.onload = () => {
     const dept = user.department;
 
     // Lógica de Botões do Menu Principal
-    const deptsPrivilegiados = ['Marketing', 'LOGISTICA', 'Núcleo de Gestão', 'Direção'];
+    const deptsPrivilegiados = ['Marketing', 'Núcleo de Gestão', 'Direção'];
     const temAcessoTotal = deptsPrivilegiados.includes(dept) || role === 'ADMIN' || role === 'LOGISTICA';
 
     document.getElementById('marketingArea').style.display = 'block';
@@ -454,19 +463,35 @@ function esconderBotoes(ids) {
         document.getElementById('marketingArea').style.display = 'block';
     }
 
-    async function loadData() {
+async function loadData() {
+    try {
         const r = await fetch(`/api/requests/list?userId=${user.id}&role=${user.role}`);
         const data = await r.json() || [];
-        document.getElementById('reqTable').innerHTML = data.map(i => `
-            <tr>
-                <td data-label="Dept"><strong>${i.department}</strong></td>
-                <td data-label="Pedido">${i.title}</td>
-                <td data-label="Estado"><span class="status status-${i.status.toLowerCase()}">${i.status}</span></td>
-                <td><span class="status status-${i.status.toLowerCase()}">${i.status}</span></td>
-                <td><button class="action-btn btn-info" onclick='alert("DESC: ${i.description}")'>Info</button></td>
-            </tr>
-        `).join('');
+        const tbody = document.getElementById('reqTable');
+        
+        if (!tbody) return; // Segurança caso o ID seja diferente
+
+        tbody.innerHTML = data.map(i => {
+            // Guardamos os dados para o modal de detalhes
+            const reqData = encodeURIComponent(JSON.stringify(i));
+            
+            return `
+                <tr>
+                    <td data-label="Dept"><strong>${i.department}</strong></td>
+                    <td data-label="Pedido">${i.title}</td>
+                    <td data-label="Evento">${i.eventName || '---'}</td>
+                    <td data-label="Estado">
+                        <span class="status status-${i.status.toLowerCase()}">${i.status}</span>
+                    </td>
+                    <td data-label="Ações" style="text-align:center;">
+                        <button onclick="verDetalhes('${reqData}')" class="action-btn" style="background: var(--primary); font-size: 11px;">Ver Info</button>
+                    </td>
+                </tr>`;
+        }).join('');
+    } catch (err) {
+        console.error("Erro ao carregar dados:", err);
     }
+}
 
 async function carregarListaGlobalFaltas() {
     try {
@@ -610,8 +635,47 @@ async function carregarListaGlobalFaltas() {
     }
     function fecharModal() {
         document.getElementById('justificationModal').style.display = 'none';
+        document.getElementById('requestModal').style.display = 'none';
     }
 
+    function verDetalhes(reqJson) {
+        const req = JSON.parse(decodeURIComponent(reqJson));
+        const modalBody = document.getElementById('modalBody');
+        
+        modalBody.innerHTML = `
+            <p><strong>Evento:</strong> ${req.eventName || '---'}</p>
+            <p><strong>Data:</strong> ${req.eventDate || '---'}</p>
+            <p><strong>Serviço:</strong> ${req.serviceType || '---'}</p>
+            <p><strong>Descrição:</strong> ${req.description}</p>
+            <p><strong>Observações:</strong> ${req.observations || 'Nenhuma'}</p>
+            <p><strong>Estado:</strong> <span class="status status-${req.status.toLowerCase()}">${req.status}</span></p>
+            
+            ${(user.role === 'ADMIN' || user.role === 'COORDENADOR') ? `
+                <div style="margin-top:20px; display:flex; gap:10px;">
+                    <button onclick="updateStatus(${req.id}, 'CONCLUÍDO')" class="action-btn btn-complete">Concluir</button>
+                    <button onclick="updateStatus(${req.id}, 'CANCELADO')" class="action-btn btn-reject">Cancelar</button>
+                </div>
+            ` : ''}
+        `;
+        document.getElementById('requestModal').style.display = 'block';
+    }
+
+    async function updateStatus(id, status) {
+    if(!confirm(`Mudar estado para ${status}?`)) return;
+    try {
+        const res = await fetch('/api/requests/update-status', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ id, status })
+        });
+        if(res.ok) {
+            alert("Estado atualizado!");
+            location.reload();
+        }
+    } catch(err) {
+        console.error("Erro ao atualizar:", err);
+    }
+}
 async function enviarJustificacao() {
     const id = document.getElementById('absenceIdToJustify').value;
     const reason = document.getElementById('justificationText').value;
