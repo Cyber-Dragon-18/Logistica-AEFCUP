@@ -464,50 +464,59 @@ function esconderBotoes(ids) {
     }
 
 async function loadData() {
-    try {
-        const r = await fetch(`/api/requests/list?userId=${user.id}&role=${user.role}`);
-        const data = await r.json() || [];
-        const tbody = document.getElementById('reqTable');
-        
-        if (!tbody) return;
+    const r = await fetch(`/api/requests/list?userId=${user.id}&role=${user.role}`);
+    const data = await r.json() || [];
 
-        // Verifica se o utilizador tem permissão de Logística ou Admin
-        const eLogisticaOuAdmin = (user.role.toUpperCase() === 'ADMIN' || user.department === 'Logística');
+    const role = user.role.toUpperCase();
+    const dept = user.department.toLowerCase();
 
-        tbody.innerHTML = data.map(i => {
-            const reqData = encodeURIComponent(JSON.stringify(i));
-            let botoesAcao = `<button class="action-btn btn-info" onclick="verDetalhes('${reqData}')">Ver Info</button>`;
-            
-            // Lógica dos botões de gestão
-            if (eLogisticaOuAdmin) {
-                if (i.status === 'PENDING') {
-                    botoesAcao = `
-                        <div style="display:flex; gap:5px; justify-content:center;">
-                            <button class="action-btn" style="background:#188038; color:white;" onclick="updateStatus(${i.id}, 'ACCEPTED')"">Aceitar</button>
-                            <button class="action-btn" style="background:#d93025; color:white;" onclick="updateStatus(${i.id}, 'REJECTED')")">Recusar</button>
-                        </div>`;
-                } else if (i.status === 'ACCEPTED') {
-                    botoesAcao = `
-                        <button class="action-btn" style="background:#1a73e8; color:white; width:100%;" onclick="updateStatus(${i.id}, 'COMPLETED')">Concluir</button>`;
-                }
-            }
+    const deptsPrivilegiados = ['marketing', 'logística', 'núcleo', 'direção'];
+    const podeValidar = role === 'ADMIN' || role === 'COORDENADOR' || deptsPrivilegiados.includes(dept);
 
-            // O data-label garante que a info aparece no telemóvel
-            return `
-                <tr>
-                    <td data-label="Dept"><strong>${i.department || '---'}</strong></td>
-                    <td data-label="Pedido">${i.title || '---'}</td>
-                    <td data-label="Evento">${i.eventName || '---'}</td>
-                    <td data-label="Estado">
-                        <span class="status status-${(i.status || 'pending').toLowerCase()}">${i.status || 'PENDING'}</span>
-                    </td>
-                    <td data-label="Ações" style="text-align:center;">${botoesAcao}</td>
-                </tr>`;
-        }).join('');
-    } catch (err) {
-        console.error("Erro ao carregar dados:", err);
-        document.getElementById('reqTable').innerHTML = '<tr><td colspan="5">Erro ao carregar pedidos.</td></tr>';
-    }
+    document.getElementById('reqTable').innerHTML = data.map(i => {
+
+        let botoesHtml = `
+            <button class="action-btn btn-info" 
+                onclick='alert("Descrição: ${i.description}")'>
+                Info
+            </button>
+        `;
+
+        if (i.status === 'PENDENTE' && podeValidar) {
+            botoesHtml = `
+                <div style="display:flex; gap:5px;">
+                    <button onclick="validarPedido(${i.id}, true)" 
+                        class="action-btn btn-confirm">
+                        Aprovar
+                    </button>
+                    <button onclick="validarPedido(${i.id}, false)" 
+                        class="action-btn btn-reject">
+                        Rejeitar
+                    </button>
+                    <button class="action-btn btn-info" 
+                        onclick='alert("Descrição: ${i.description}")'>
+                        Info
+                    </button>
+                </div>
+            `;
+        }
+
+        return `
+            <tr>
+                <td data-label="Dept"><strong>${i.department}</strong></td>
+                <td data-label="Pedido">${i.title}</td>
+                <td data-label="Evento">${i.eventName || '-'}</td>
+                <td data-label="Estado">
+                    <span class="status status-${i.status.toLowerCase()}">
+                        ${i.status}
+                    </span>
+                </td>
+                <td data-label="Ações">
+                    ${botoesHtml}
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
 
 
@@ -626,6 +635,28 @@ async function carregarListaGlobalFaltas() {
         const res = await fetch('/api/requests', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
         if (res.ok) location.reload();
     }
+    async function validarPedido(id, aceitar) {
+
+    if (!confirm(aceitar ? "Aprovar este pedido?" : "Rejeitar este pedido?")) return;
+
+    try {
+        const res = await fetch('/api/requests/validate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: parseInt(id),
+                accepted: aceitar
+            })
+        });
+
+        if (res.ok) {
+            alert("Pedido atualizado com sucesso!");
+            loadData(); // Atualiza a tabela sem reload
+        }
+    } catch (err) {
+        console.error("Erro ao validar pedido:", err);
+    }
+}
 
     async function carregarMembrosParaFaltas() {
         const res = await fetch(`/api/attendance/members?dept=${encodeURIComponent(user.department)}`);
