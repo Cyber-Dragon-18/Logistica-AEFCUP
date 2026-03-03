@@ -379,8 +379,8 @@ window.onload = () => {
     const dept = user.department;
 
     // Lógica de Botões do Menu Principal
-    const deptsPrivilegiados = ['Marketing', 'LOGISTICA', 'Núcleo', 'Direção'];
-    const temAcessoTotal = deptsPrivilegiados.includes(dept) || role === 'ADMIN';
+    const deptsPrivilegiados = ['Marketing', 'LOGISTICA', 'Núcleo de Gestão', 'Direção'];
+    const temAcessoTotal = deptsPrivilegiados.includes(dept) || role === 'ADMIN' || role === 'LOGISTICA';
 
     document.getElementById('marketingArea').style.display = 'block';
 
@@ -716,7 +716,7 @@ async function carregarEstatisticasTurnos() {
         const dept = user.department;
         
         // Define se deve ver tudo (Logística/Admin) ou apenas o seu departamento
-        const eLogisticaOuAdmin = (dept === 'Logística' || role === 'ADMIN');
+        const eLogisticaOuAdmin = (role === 'LOGISTICA' || role === 'ADMIN');
         const urlFetch = eLogisticaOuAdmin 
             ? `/api/attendance/admin-list?dept=ALL` // Criamos um caso "ALL" no servidor ou enviamos vazio
             : `/api/attendance/admin-list?dept=${encodeURIComponent(dept)}`;
