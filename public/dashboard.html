@@ -72,7 +72,7 @@
             font-family: inherit;
             resize: none;
             margin-bottom: 20px;
-}
+        }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
 
@@ -149,6 +149,10 @@
         .status-falta_injustificada { background: #fce8e6; color: #d93025; }
         .status-falta_justificada { background: #e8f0fe; color: #1a73e8; }
         .status-pendente_justificacao { background: #fef7e0; color: #f29900; }
+        .status-pending { background: #fef7e0; color: #f29900; }
+        .status-accepted { background: #e6f4ea; color: #1e8e3e; }
+        .status-rejected { background: #fce8e6; color: #d93025; }
+        
         .tabs-container {
             display: flex;
             gap: 10px;
@@ -203,7 +207,25 @@
             max-width: 1200px !important;
             width: 95% !important;
         }
-    
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 10000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -363,13 +385,14 @@
     </div>
 
     <div id="requestModal" class="modal">
-    <div class="modal-content">
-        <span class="close" onclick="fecharModalRequest()">&times;</span>
-        <h2 id="modalTitle">Detalhes da Requisição</h2>
-        <div id="modalBody" style="text-align: left; margin-top: 20px;">
+        <div class="modal-content">
+            <span class="close" onclick="fecharModal()">&times;</span>
+            <h2 id="modalTitle">Detalhes da Requisição</h2>
+            <div id="modalBody" style="text-align: left; margin-top: 20px;">
+                <p id="requestInfoText"></p>
             </div>
+        </div>
     </div>
-</div>
 
 <script>
     const user = JSON.parse(localStorage.getItem('user'));
@@ -387,7 +410,6 @@ window.onload = () => {
     const role = user.role.toUpperCase();
     const dept = user.department;
 
-    // Lógica de Botões do Menu Principal
     const deptsPrivilegiados = ['Marketing', 'Núcleo de Gestão', 'Direção'];
     const temAcessoTotal = deptsPrivilegiados.includes(dept) || role === 'ADMIN' || role === 'LOGISTICA';
 
@@ -403,7 +425,6 @@ window.onload = () => {
         esconderBotoes(['btn-requisicao', 'btn-upload', 'btn-gestao', 'btn-galeria-publica']);
     }
 
-    // ESCONDER ABA DE ESTATÍSTICAS PARA MEMBROS
     if (role === 'MEMBRO') {
         document.getElementById('btnTabStats').style.display = 'none';
     }
@@ -418,49 +439,44 @@ window.onload = () => {
     function showMktRequests() {
         document.getElementById('marketingArea').style.display = 'none';
         document.getElementById('coordArea').style.display = 'block';
+        document.getElementById('autoDept').innerText = user.department;
     }
 
     function showAttendanceArea() {
-        // Esconde o menu
         document.getElementById('marketingArea').style.display = 'none';
-        
-        // Mostra a assiduidade
         const view = document.getElementById('attendanceView');
         view.style.display = 'block';
-        
-        // Alarga o contentor principal
         document.querySelector('.card').classList.add('card-wide');
         
         const role = user.role.toUpperCase();
-
         if (role === 'MEMBRO') {
-            // MOSTRA a parte do membro
             document.getElementById('memberAttendanceStatus').style.display = 'block';
             loadMemberAttendance();
         } else {
-            // MOSTRA a parte do coordenador
             document.getElementById('coordAttendanceSection').style.display = 'block';
             carregarListaGlobalFaltas();
         }
     }
 
     function mostrarBotoes(ids) {
-    ids.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = 'flex';
-    });
-}
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'flex';
+        });
+    }
 
-function esconderBotoes(ids) {
-    ids.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = 'none';
-    });
-}
+    function esconderBotoes(ids) {
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
+    }
+
     function backToMenu() {
         document.getElementById('coordArea').style.display = 'none';
         document.getElementById('attendanceView').style.display = 'none';
         document.getElementById('marketingArea').style.display = 'block';
+        document.querySelector('.card').classList.remove('card-wide');
     }
 
 async function loadData() {
@@ -470,34 +486,28 @@ async function loadData() {
 
     const role = user.role.toUpperCase();
     const dept = user.department.toLowerCase();
-
-    const deptsPrivilegiados = ['marketing', 'núcleo', 'direção'];
-    const podeValidar = role === 'ADMIN' || role === 'COORDENADOR' || deptsPrivilegiados.includes(dept);
+    const deptsPrivilegiados = ['marketing', 'núcleo de gestão', 'direção', 'logística'];
+    const podeValidar = role === 'ADMIN' || role === 'LOGISTICA' || deptsPrivilegiados.includes(dept);
 
     document.getElementById('reqTable').innerHTML = data.map(i => {
+        let botoesHtml = `<button class="action-btn btn-info" onclick="verInfoPedido(${i.id})">Info</button>`;
 
-        let botoesHtml = `
-            <button class="action-btn btn-info" 
-                onclick="verInfoPedido(${i.id})">
-                Info
-            </button>
-        `;
-
-        if (i.status === 'PENDENTE' && podeValidar) {
+        // Lógica para pedidos PENDENTES
+        if (i.status === 'PENDING' && podeValidar) {
             botoesHtml = `
                 <div style="display:flex; gap:5px;">
-                    <button onclick="validarPedido(${i.id}, true)" 
-                        class="action-btn btn-confirm">
-                        Aprovar
-                    </button>
-                    <button onclick="validarPedido(${i.id}, false)" 
-                        class="action-btn btn-reject">
-                        Rejeitar
-                    </button>
-                    <button class="action-btn btn-info" 
-                        onclick='alert("Descrição: ${i.description}")'>
-                        Info
-                    </button>
+                    <button onclick="validarPedido(${i.id}, 'ACCEPTED')" class="action-btn btn-confirm">Aprovar</button>
+                    <button onclick="validarPedido(${i.id}, 'REJECTED')" class="action-btn btn-reject">Rejeitar</button>
+                    <button class="action-btn btn-info" onclick="verInfoPedido(${i.id})">Info</button>
+                </div>
+            `;
+        } 
+        // NOVA Lógica para pedidos ACEITES (Aparece o botão Concluir)
+        else if (i.status === 'ACCEPTED' && podeValidar) {
+            botoesHtml = `
+                <div style="display:flex; gap:5px;">
+                    <button onclick="validarPedido(${i.id}, 'COMPLETED')" class="action-btn" style="background-color: #1e8e3e; color: white;">Concluir</button>
+                    <button class="action-btn btn-info" onclick="verInfoPedido(${i.id})">Info</button>
                 </div>
             `;
         }
@@ -508,23 +518,37 @@ async function loadData() {
                 <td data-label="Pedido">${i.title}</td>
                 <td data-label="Evento">${i.eventName || '-'}</td>
                 <td data-label="Estado">
-                    <span class="status status-${i.status.toLowerCase()}">
-                        ${i.status}
-                    </span>
+                    <span class="status status-${i.status.toLowerCase()}">${i.status}</span>
                 </td>
-                <td data-label="Ações">
-                    ${botoesHtml}
-                </td>
+                <td data-label="Ações">${botoesHtml}</td>
             </tr>
         `;
     }).join('');
 }
-function verInfoPedido(id) {
-    const pedidos = window._pedidosCache || [];
-    const pedido = pedidos.find(p => p.id === id);
-    if (!pedido) return;
 
-    alert("Descrição:\n\n" + pedido.description);
+function verInfoPedido(id) {
+    const pedido = window._pedidosCache.find(p => p.id === id);
+    if (!pedido) return;
+    
+    const infoText = document.getElementById("requestInfoText");
+    if(infoText) {
+        infoText.innerText = pedido.description;
+        document.getElementById("requestModal").style.display = "block";
+    } else {
+        alert("Descrição: " + pedido.description);
+    }
+}
+
+async function validarPedido(id, novoStatus) {
+    if (!confirm(`Desejas marcar este pedido como ${novoStatus}?`)) return;
+    try {
+        const res = await fetch('/api/requests/update', { // Rota correta do main.go
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: parseInt(id), status: novoStatus })
+        });
+        if (res.ok) loadData();
+    } catch (err) { console.error("Erro:", err); }
 }
 
 async function carregarListaGlobalFaltas() {
@@ -532,15 +556,11 @@ async function carregarListaGlobalFaltas() {
         const res = await fetch(`/api/attendance/admin-list?dept=${encodeURIComponent(user.department)}`);
         const data = await res.json() || [];
         const tbody = document.getElementById('globalAttendanceTableBody');
-        
-        const role = (user.role || '').toUpperCase().trim();
-        const dept = (user.department || '').toLowerCase().trim();
-        const deptsPrivilegiados = ['marketing', 'logística', 'núcleo', 'direção'];
-
-        // Define quem pode ver os botões de Aceitar/Recusar
+        const role = user.role.toUpperCase();
+        const dept = user.department.toLowerCase();
+        const deptsPrivilegiados = ['marketing', 'logística', 'núcleo de gestão', 'direção'];
         const podeValidar = role === 'ADMIN' || role === 'COORDENADOR' || deptsPrivilegiados.includes(dept);
 
-        // 1. Agrupar os dados por Reunião + Data
         const grupos = {};
         data.forEach(row => {
             const chave = `${row.title} (${row.date.split('T')[0]})`;
@@ -548,83 +568,33 @@ async function carregarListaGlobalFaltas() {
             grupos[chave].push(row);
         });
 
-        // 2. Gerar o HTML agrupado
         let htmlFinal = '';
         for (const evento in grupos) {
-            // Linha de cabeçalho da reunião (barra azul)
-            htmlFinal += `
-                <tr class="meeting-row">
-                    <td colspan="4" style="padding: 12px; font-weight: bold; color: #1a73e8; border-bottom: 2px solid #1a73e8;">
-                        📅 ${evento}
-                    </td>
-                </tr>
-                <tr class="no-mobile" style="font-size: 11px; color: #5f6368; background: #fafafa; font-weight: bold;">
-                    <td style="padding: 8px;">MEMBRO</td>
-                    <td style="padding: 8px;">ESTADO</td>
-                    <td style="padding: 8px;">OBS / JUSTIFICAÇÃO</td>
-                    <td style="padding: 8px; text-align: center;">AÇÕES</td>
-                </tr>`;
-
-            // Linhas dos Membros
+            htmlFinal += `<tr class="meeting-row"><td colspan="4" style="padding: 12px; font-weight: bold; color: #1a73e8; border-bottom: 2px solid #1a73e8;">📅 ${evento}</td></tr>`;
             grupos[evento].forEach(row => {
                 let botoesHtml = '---';
                 let textoObs = row.obs || '---';
-
                 if (row.status === 'PENDENTE_JUSTIFICACAO') {
                     textoObs = `<div style="color:#f29900;"><strong>Justificação:</strong> ${row.obs}</div>`;
                     if (podeValidar) {
-                        botoesHtml = `
-                            <div style="display:flex; gap:5px; justify-content:center;">
-                                <button onclick="validarJustificacao(${row.id}, true)" class="action-btn btn-complete" style="background:#1e8e3e; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">Aceitar</button>
-                                <button onclick="validarJustificacao(${row.id}, false)" class="action-btn btn-reject" style="background:#d93025; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">Recusar</button>
-                            </div>`;
+                        botoesHtml = `<div style="display:flex; gap:5px; justify-content:center;"><button onclick="validarJustificacao(${row.id}, true)" class="action-btn btn-confirm">Aceitar</button><button onclick="validarJustificacao(${row.id}, false)" class="action-btn btn-reject">Recusar</button></div>`;
                     }
                 }
-
-                                // O 'data-label' é o que permite ver a info no telemóvel
-                htmlFinal += `
-                    <tr style="border-bottom: 1px solid #eee;">
-                        <td data-label="Membro" style="padding: 12px;">
-                            <strong>${row.name}</strong>
-                        </td>
-                        <td data-label="Estado" style="padding: 12px;">
-                            <span class="status status-${row.status.toLowerCase()}">
-                                ${row.status.replace(/_/g, ' ')}
-                            </span>
-                        </td>
-                        <td data-label="Obs" style="padding: 12px; font-size: 12px;">
-                            ${textoObs}
-                        </td>
-                        <td data-label="Ações" style="padding: 12px; text-align: center;">
-                            ${botoesHtml}
-                        </td>
-                    </tr>`;
+                htmlFinal += `<tr style="border-bottom: 1px solid #eee;"><td data-label="Membro" style="padding: 12px;"><strong>${row.name}</strong></td><td data-label="Estado" style="padding: 12px;"><span class="status status-${row.status.toLowerCase()}">${row.status.replace(/_/g, ' ')}</span></td><td data-label="Obs" style="padding: 12px; font-size: 12px;">${textoObs}</td><td data-label="Ações" style="padding: 12px; text-align: center;">${botoesHtml}</td></tr>`;
             });
         }
-        
         tbody.innerHTML = htmlFinal || '<tr><td colspan="4" style="text-align:center; padding:20px;">Sem registos de assiduidade.</td></tr>';
-    } catch (err) {
-        console.error("Erro ao carregar lista:", err);
-    }
+    } catch (err) { console.error(err); }
 }
 
     async function loadMemberAttendance() {
         const res = await fetch(`/api/attendance/user?userId=${user.id}`);
         const history = await res.json() || [];
-        
-        document.getElementById('memberAbsencesCount').innerText = 
-            history.filter(a => a.status === 'FALTA_INJUSTIFICADA').length;
-
+        document.getElementById('memberAbsencesCount').innerText = history.filter(a => a.status === 'FALTA_INJUSTIFICADA').length;
         document.getElementById('absencesList').innerHTML = history.map(a => `
             <div class="attendance-card">
-                <div>
-                    <strong>${a.title}</strong><br>
-                    <small>${a.date}</small><br>
-                    <span class="status-${a.status.toLowerCase()}">${a.status.replace(/_/g, ' ')}</span>
-                </div>
-                ${a.status === 'FALTA_INJUSTIFICADA' ? 
-                    `<button onclick="abrirModalJustificacao(${a.id})" class="action-btn btn-info">Justificar</button>` 
-                    : ''}
+                <div><strong>${a.title}</strong><br><small>${a.date}</small><br><span class="status-${a.status.toLowerCase()}">${a.status.replace(/_/g, ' ')}</span></div>
+                ${a.status === 'FALTA_INJUSTIFICADA' ? `<button onclick="abrirModalJustificacao(${a.id})" class="action-btn btn-info">Justificar</button>` : ''}
             </div>
         `).join('');
     }
@@ -642,28 +612,6 @@ async function carregarListaGlobalFaltas() {
         const res = await fetch('/api/requests', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
         if (res.ok) location.reload();
     }
-    async function validarPedido(id, aceitar) {
-
-    if (!confirm(aceitar ? "Aprovar este pedido?" : "Rejeitar este pedido?")) return;
-
-    try {
-        const res = await fetch('/api/requests/validate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                id: parseInt(id),
-                accepted: aceitar
-            })
-        });
-
-        if (res.ok) {
-            alert("Pedido atualizado com sucesso!");
-            loadData(); // Atualiza a tabela sem reload
-        }
-    } catch (err) {
-        console.error("Erro ao validar pedido:", err);
-    }
-}
 
     async function carregarMembrosParaFaltas() {
         const res = await fetch(`/api/attendance/members?dept=${encodeURIComponent(user.department)}`);
@@ -687,160 +635,59 @@ async function carregarListaGlobalFaltas() {
     function abrirModalJustificacao(id) {
         document.getElementById('absenceIdToJustify').value = id;
         document.getElementById('justificationModal').style.display = 'block';
-        document.getElementById('justificationText').value = ""; // Limpa o texto anterior
+        document.getElementById('justificationText').value = "";
     }
+    
     function fecharModal() {
         document.getElementById('justificationModal').style.display = 'none';
         document.getElementById('requestModal').style.display = 'none';
     }
 
-    function verDetalhes(reqEncoded) {
-        const req = JSON.parse(decodeURIComponent(reqEncoded));
-        const modal = document.getElementById('justificationModal'); // Usando o container de modal existente
-        const modalContent = modal.querySelector('.modal-content');
-
-        // Definir se o utilizador atual pode concluir/cancelar pedidos
-        const podeGerir = user.role.toUpperCase() === 'ADMIN' || user.department === 'Logística';
-
-        modalContent.innerHTML = `
-            <span class="close" onclick="fecharModal()" style="cursor:pointer; float:right; font-size:24px;">&times;</span>
-            <h3>Detalhes da Requisição</h3>
-            <div style="text-align: left; margin-top: 20px; line-height: 1.6;">
-                <p><strong>Evento:</strong> ${req.eventName || '---'}</p>
-                <p><strong>Serviço:</strong> ${req.serviceType || '---'}</p>
-                <p><strong>Descrição:</strong> ${req.description}</p>
-                <p><strong>Observações:</strong> ${req.observations || 'Nenhuma'}</p>
-                <p><strong>Estado:</strong> <span class="status status-${req.status.toLowerCase()}">${req.status}</span></p>
-            </div>
-            
-            <div style="margin-top: 25px; display: flex; gap: 10px;">
-                <button class="action-btn btn-cancel" onclick="fecharModal()" style="flex:1;">Fechar</button>
-                ${podeGerir ? `
-                    <button class="action-btn status-presente" onclick="updateStatus(${req.id}, 'COMPLETED')" style="flex:1; background:#188038; color:white;">Concluir</button>
-                    <button class="action-btn btn-reject" onclick="updateStatus(${req.id}, 'CANCELLED')" style="flex:1; color:white;">Cancelar</button>
-                ` : ''}
-            </div>
-        `;
-        modal.style.display = 'block';
-    }
-
-    async function updateStatus(id, newStatus) {
-        if (!confirm(`Desejas marcar este pedido como ${newStatus}?`)) return;
-
+    async function enviarJustificacao() {
+        const id = document.getElementById('absenceIdToJustify').value;
+        const reason = document.getElementById('justificationText').value;
+        if (!reason.trim()) return alert("Escreve um motivo.");
         try {
-            const res = await fetch('/api/requests/update', {
+            const res = await fetch('/api/attendance/justify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    id: parseInt(id), 
-                    status: newStatus 
-                })
+                body: JSON.stringify({ absenceId: parseInt(id), reason: reason })
             });
-
-            if (res.ok) {
-                alert("Pedido atualizado com sucesso!");
-                fecharModal();
-                loadData();
-            } else {
-                const erro = await res.text();
-                console.error("Erro servidor:", erro);
-                alert("Erro ao atualizar o pedido.");
-            }
-
-        } catch (err) {
-            console.error("Erro fetch:", err);
-            alert("Erro de comunicação com o servidor.");
-        }
-    }
-async function enviarJustificacao() {
-    const id = document.getElementById('absenceIdToJustify').value;
-    const reason = document.getElementById('justificationText').value;
-
-    if (!reason.trim()) {
-        alert("Por favor, escreve um motivo.");
-        return;
+            if (res.ok) { alert("Enviada!"); fecharModal(); loadMemberAttendance(); }
+        } catch (err) { console.error(err); }
     }
 
-    try {
-        const res = await fetch('/api/attendance/justify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                absenceId: parseInt(id), 
-                reason: reason 
-            })
-        });
-
-        if (res.ok) {
-            alert("Justificação enviada!");
-            fecharModal();
-            location.reload(); 
-        }
-    } catch (err) {
-        console.error("Erro ao enviar:", err);
+    async function validarJustificacao(id, aceitar) {
+        if (!confirm(aceitar ? "Aceitar?" : "Recusar?")) return;
+        try {
+            const res = await fetch('/api/attendance/validate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: parseInt(id), accepted: aceitar })
+            });
+            if (res.ok) carregarListaGlobalFaltas();
+        } catch (err) { console.error(err); }
     }
-}
-async function validarJustificacao(id, aceitar) {
-    if (!confirm(aceitar ? "Aceitar esta justificação?" : "Recusar esta justificação?")) return;
 
-    try {
-        const res = await fetch('/api/attendance/validate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                id: parseInt(id), // O Go espera um int
-                accepted: aceitar 
-            })
-        });
-
-        if (res.ok) {
-            alert("Sucesso!");
-            carregarListaGlobalFaltas(); // Atualiza a tabela
-        }
-    } catch (err) {
-        console.error("Erro ao validar:", err);
-    }
-}
     function updateAvatar() {
         const avatarDiv = document.getElementById('userAvatar');
         const initialSpan = document.getElementById('userInitial');
-
-        // Se houver uma foto e ela não for apenas uma string vazia
         if (user.photo && user.photo.trim() !== '') {
-            // Criamos um elemento de imagem para testar se carrega bem
             const img = new Image();
             img.src = user.photo;
-            
-            img.onload = () => {
-                // Se carregar, limpamos o span e pomos a imagem
-                avatarDiv.innerHTML = `<img src="${user.photo}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
-            };
-            
-            img.onerror = () => {
-                // Se der erro (imagem partida), voltamos para a inicial
-                mostrarInicial(avatarDiv, initialSpan);
-            };
-        } else {
-            mostrarInicial(avatarDiv, initialSpan);
-        }
+            img.onload = () => { avatarDiv.innerHTML = `<img src="${user.photo}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`; };
+            img.onerror = () => { mostrarInicial(avatarDiv, initialSpan); };
+        } else { mostrarInicial(avatarDiv, initialSpan); }
     }
-    function mostrarInicial(div, span) {
-    // Garante que o span é visível e tem a letra correta
-        div.innerHTML = `<span id="userInitial">${user.name.charAt(0).toUpperCase()}</span>`;
-    } 
+    function mostrarInicial(div, span) { div.innerHTML = `<span id="userInitial">${user.name.charAt(0).toUpperCase()}</span>`; } 
     function toggleMenu() { document.getElementById("avatarDropdown").classList.toggle("show"); }
     function logout() { localStorage.clear(); window.location.href = "/"; }
     function openPublicGallery() { window.location.href = `/galeria.html?token=aefcup-galeria-2026-xyz`; }
 
     function switchTab(tabName) {
-        // Esconde todos os conteúdos
         document.querySelectorAll('.attendance-content').forEach(c => c.style.display = 'none');
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        
-        // Mostra o selecionado
         document.getElementById(`tab-${tabName}`).style.display = 'block';
-        
-        // Ativa o botão correto
         if(tabName === 'historico') {
             document.getElementById('btnTabHist').classList.add('active');
             carregarListaGlobalFaltas();
@@ -853,66 +700,25 @@ async function validarJustificacao(id, aceitar) {
 async function carregarEstatisticasTurnos() {
     try {
         const role = user.role.toUpperCase();
-        const dept = user.department;
-        
-        // Define se deve ver tudo (Logística/Admin) ou apenas o seu departamento
         const eLogisticaOuAdmin = (role === 'LOGISTICA' || role === 'ADMIN');
-        const urlFetch = eLogisticaOuAdmin 
-            ? `/api/attendance/admin-list?dept=ALL` // Criamos um caso "ALL" no servidor ou enviamos vazio
-            : `/api/attendance/admin-list?dept=${encodeURIComponent(dept)}`;
-
+        const urlFetch = eLogisticaOuAdmin ? `/api/attendance/admin-list?dept=ALL` : `/api/attendance/admin-list?dept=${encodeURIComponent(user.department)}`;
         const res = await fetch(urlFetch);
         const data = await res.json() || [];
-        
-        // Agrupar e contar presenças por membro E departamento
         const contagem = {};
         data.forEach(row => {
             if (row.status === 'PRESENTE') {
-                // Chave única por utilizador para não misturar nomes iguais de depts diferentes
-                const chave = row.name; 
-                if (!contagem[chave]) {
-                    contagem[chave] = { total: 0, dept: row.department || dept };
-                }
-                contagem[chave].total += 1;
+                if (!contagem[row.name]) contagem[row.name] = { total: 0, dept: row.department };
+                contagem[row.name].total += 1;
             }
         });
-
         const ranking = Object.entries(contagem).sort((a, b) => b[1].total - a[1].total);
         const container = document.getElementById('statsContainer');
-
-        if (ranking.length === 0) {
-            container.innerHTML = "<p style='text-align:center; padding:20px;'>Nenhum turno registado como 'Presente'.</p>";
-            return;
-        }
-
-        container.innerHTML = `
-            <div style="margin-bottom: 15px; padding: 10px; background: #e8f0fe; border-radius: 8px; font-size: 13px;">
-                <strong>Visão:</strong> ${eLogisticaOuAdmin ? 'Global (Todos os Departamentos)' : 'Departamento ' + dept}
-            </div>
-            ` + ranking.map(([nome, info], index) => `
-            <div class="stats-card" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: white; margin-bottom: 10px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 5px solid #1a73e8;">
-                <div>
-                    <span style="font-weight: bold; color: #1a73e8; margin-right: 10px;">#${index + 1}</span>
-                    <strong>${nome}</strong><br>
-                    <small style="color: #5f6368;">${info.dept}</small>
-                </div>
-                <div style="background: #1a73e8; color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold;">
-                    ${info.total} Turnos
-                </div>
-            </div>
-        `).join('');
-
-    } catch (err) {
-        console.error("Erro ao carregar estatísticas globais:", err);
-    }
+        if (ranking.length === 0) { container.innerHTML = "<p style='text-align:center;'>Sem presenças.</p>"; return; }
+        container.innerHTML = ranking.map(([nome, info], index) => `<div class="stats-card"><div><strong>#${index + 1} ${nome}</strong><br><small>${info.dept}</small></div><div class="badge-turnos">${info.total} Turnos</div></div>`).join('');
+    } catch (err) { console.error(err); }
 }
 
-window.onclick = function(event) {
-    const modal = document.getElementById('justificationModal');
-    if (event.target == modal) {
-        fecharModal();
-    }
-}
+window.onclick = function(event) { if (event.target == document.getElementById('justificationModal') || event.target == document.getElementById('requestModal')) fecharModal(); }
 
 </script>
 </body>
