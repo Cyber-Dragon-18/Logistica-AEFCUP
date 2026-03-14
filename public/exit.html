@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carta de Demissão – AEFCUP</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/x-icon" href="/lib/LogoBranco.png">
+    <meta name="theme-color" content="#1a73e8">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=DM+Sans:wght@400;500;600&display=swap');
+
+        body {
+            background: #f5f6fa;
+            min-height: 100vh;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 40px 20px;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .page-wrapper {
+            width: 100%;
+            max-width: 780px;
+        }
+
+        /* Header bar same as dashboard */
+        .top-bar {
+            background: white;
+            border-radius: 16px;
+            padding: 20px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            border: 1px solid #eee;
+        }
+
+        .top-bar h2 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #202124;
+            margin: 0;
+        }
+
+        .back-btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            background: white;
+            color: #5f6368;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .back-btn:hover {
+            background: #f1f3f4;
+            border-color: #ddd;
+        }
+
+        /* Letter card */
+        .letter-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.07);
+            border: 1px solid #eee;
+            overflow: hidden;
+        }
+
+        .letter-card-header {
+            background: linear-gradient(135deg, #1a73e8 0%, #1557b0 100%);
+            padding: 28px 40px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .letter-card-header .icon {
+            font-size: 32px;
+            line-height: 1;
+        }
+
+        .letter-card-header h3 {
+            color: white;
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .letter-card-header p {
+            color: rgba(255,255,255,0.75);
+            margin: 4px 0 0;
+            font-size: 13px;
+        }
+
+        .letter-body {
+            padding: 48px 52px;
+        }
+
+        /* The actual letter text */
+        .letter-text {
+            font-family: 'EB Garamond', Georgia, serif;
+            font-size: 17px;
+            line-height: 1.85;
+            color: #2c2c2c;
+        }
+
+        .letter-text p {
+            margin: 0 0 22px;
+        }
+
+        .letter-text p:last-child {
+            margin-bottom: 0;
+        }
+
+        .letter-signature {
+            margin-top: 40px;
+            padding-top: 32px;
+            border-top: 1px solid #eee;
+        }
+
+        .letter-signature .sig-name {
+            font-family: 'EB Garamond', serif;
+            font-size: 19px;
+            font-weight: 500;
+            color: #202124;
+            margin: 0 0 4px;
+        }
+
+        .letter-signature .sig-role {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px;
+            color: #5f6368;
+            margin: 0 0 2px;
+        }
+
+        .letter-signature .sig-org {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px;
+            color: #1a73e8;
+            font-weight: 500;
+            margin: 0 0 2px;
+        }
+
+        .letter-signature .sig-date {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px;
+            color: #9aa0a6;
+            margin: 0;
+        }
+
+        /* Download button */
+        .actions {
+            padding: 20px 40px 28px;
+            border-top: 1px solid #f1f3f4;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .btn-download {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .btn-download:hover {
+            background: #1557b0;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(26,115,232,0.35);
+        }
+
+        .btn-download:active {
+            transform: translateY(0);
+        }
+
+        /* Print / PDF styles */
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .top-bar, .letter-card-header, .actions {
+                display: none !important;
+            }
+            .letter-card {
+                box-shadow: none;
+                border: none;
+                border-radius: 0;
+            }
+            .letter-body {
+                padding: 60px 80px;
+            }
+            .letter-text {
+                font-size: 14pt;
+                line-height: 1.9;
+            }
+            .letter-signature {
+                margin-top: 50px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="page-wrapper">
+    <div class="top-bar">
+        <h2>📄 Carta de Demissão</h2>
+        <a href="/dashboard.html" class="back-btn">← Voltar ao Dashboard</a>
+    </div>
+
+    <div class="letter-card">
+        <div class="letter-card-header">
+            <div class="icon">✉️</div>
+            <div>
+                <h3>Carta de Demissão Formal</h3>
+                <p>Associação de Estudantes da FCUP</p>
+            </div>
+        </div>
+
+        <div class="letter-body">
+            <div class="letter-text">
+                <p>À Direção da Associação de Estudantes da Faculdade de Ciências da Universidade do Porto (AEFCUP),</p>
+
+                <p>Venho por este meio apresentar formalmente a minha demissão do cargo de Coordenadora do Marketing da Associação de Estudantes da FCUP, com efeitos a partir de ontem.</p>
+
+                <p>Esta decisão foi tomada após uma reflexão ponderada, tendo em conta motivos pessoais e/ou académicos que me impedem de continuar a desempenhar as funções com a dedicação e responsabilidade que o cargo exige.</p>
+
+                <p>Aproveito para agradecer a oportunidade de ter integrado esta equipa e de contribuir para o trabalho desenvolvido pela Associação de Estudantes. Foi uma experiência enriquecedora, tanto a nível pessoal como profissional, e desejo à direção e a (quase) toda a equipa o maior sucesso na continuação do mandato e nos projetos futuros.</p>
+
+                <p>Não me comprometo a colaborar no processo de transição de funções, de forma a garantir a continuidade do trabalho desenvolvido na área do marketing.</p>
+
+                <p>Com os melhores cumprimentos,</p>
+            </div>
+
+            <div class="letter-signature">
+                <p class="sig-name" id="sigName">—</p>
+                <p class="sig-role" id="sigRole">—</p>
+                <p class="sig-org">Associação de Estudantes da Faculdade de Ciências da Universidade do Porto</p>
+                <p class="sig-date">12 de março de 2026</p>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn-download" onclick="downloadLetter()">
+                ⬇️ Descarregar carta
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) window.location.href = '/';
+
+    // Fill in name and role/department
+    document.getElementById('sigName').textContent = user.name;
+    document.getElementById('sigRole').textContent = user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase() + ' – ' + user.department;
+
+    function downloadLetter() {
+        window.print();
+    }
+</script>
+
+</body>
+</html>

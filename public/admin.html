@@ -12,6 +12,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Logística">
     <link rel="apple-touch-icon" href="/lib/LogoBranco.png">
+    <script src="/notify.js"></script>
 </head>
 <body>
     <div class="card">
@@ -65,7 +66,7 @@
         }
 
         async function deleteUser(userId) {
-            if (!confirm("Tem a certeza que deseja eliminar este utilizador?")) return;
+            if (!await confirmDialog("Tem a certeza que deseja eliminar este utilizador?", { icon: "🗑️", danger: true, okLabel: "Eliminar" })) return;
 
             try {
                 const res = await fetch('/api/admin/delete-user', {
@@ -78,10 +79,10 @@
                 });
 
                 if (res.ok) {
-                    alert("Utilizador eliminado com sucesso!");
+                    toast("Utilizador eliminado com sucesso!", "success");
                     location.reload(); // Recarrega para fazer o utilizador desaparecer da lista
                 } else {
-                    alert("Erro ao eliminar: Verifique as suas permissões.");
+                    toast("Erro ao eliminar: verifique as suas permissões.", "error");
                 }
             } catch (err) {
                 console.error("Erro na ligação:", err);
@@ -89,7 +90,7 @@
         }
 
         async function changeRole(id, newRole) {
-            if(!confirm(`Mudar cargo para ${newRole}?`)) return;
+            if(!await confirmDialog(`Mudar cargo para ${newRole}?`, { icon: "👤" })) return;
             
             await fetch('/api/admin/update-role', {
                 method: 'POST',

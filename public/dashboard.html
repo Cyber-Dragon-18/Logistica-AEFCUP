@@ -243,6 +243,7 @@
                     <a href="/profile.html">⚙️ Editar Perfil</a>
                     <a href="/admin.html" id="adminLink" style="display:none; font-weight:bold; color:var(--primary);">👥 Gerir Utilizadores</a>
                     <a href="#" onclick="logout()" style="color: var(--danger);">🚪 Sair</a>
+                    <!-- <a href="/exit.html" id ="adminLink" display:none; font-weight: bold; color:var(--primary);">🚪 Sair da AE</a> -->
                 </div>
             </div>
         </header>
@@ -250,25 +251,25 @@
         <div id="marketingArea" style="display: none; margin: 40px auto; max-width: 800px; animation: fadeIn 0.5s ease;">
             <h2 style="text-align: center; color: #202124; margin-bottom: 40px; font-weight: 500;">O que pretendes fazer hoje?</h2>
             <div class="mkt-container">
-                <div id="btn-requisicao" onclick="showMktRequests()" class="mkt-card">
+                <div id="btn-requisicao" onclick="showMktRequests()" class="mkt-card" style="display:none;">
                     <div style="font-size: 40px; margin-bottom: 15px;">📋</div>
                     <h3 style="color: var(--primary); margin: 0;">Fazer Requisição</h3>
                     <p style="color: #70757a; font-size: 13px; margin-top: 10px;">Criar novo pedido de logística para eventos.</p>
                 </div>
 
-                <div id="btn-upload" onclick="window.location.href='/upload-galeria.html'" class="mkt-card">
+                <div id="btn-upload" onclick="window.location.href='/upload-galeria.html'" class="mkt-card" style="display:none;">
                     <div style="font-size: 40px; margin-bottom: 15px;">📸</div>
                     <h3 style="color: #28a745; margin: 0;">Upload Galeria</h3>
                     <p style="color: #70757a; font-size: 13px; margin-top: 10px;">Adicionar novas fotos à galeria pública.</p>
                 </div>
 
-                <div id="btn-gestao" onclick="window.location.href='/gestao-galeria.html'" class="mkt-card">
+                <div id="btn-gestao" onclick="window.location.href='/gestao-galeria.html'" class="mkt-card" style="display:none;">
                     <div style="font-size: 40px; margin-bottom: 15px;">⚙️</div>
                     <h3 style="color: #5f6368; margin: 0;">Gerir Galeria</h3>
                     <p style="color: #70757a; font-size: 14px; margin-top: 10px;">Visualizar, organizar e apagar álbuns antigos.</p>
                 </div>
 
-                <div id="btn-galeria-publica" onclick="openPublicGallery()" class="mkt-card">
+                <div id="btn-galeria-publica" onclick="openPublicGallery()" class="mkt-card" style="display:none;">
                     <div style="font-size: 40px; margin-bottom: 15px;">🌐</div>
                     <h3 style="color: #1a73e8; margin: 0;">Ver Galeria Pública</h3>
                     <p style="color: #70757a; font-size: 14px; margin-top: 10px;">Abrir a galeria como os sócios a veem.</p>
@@ -399,19 +400,17 @@
     if (!user) window.location.href = "/";
 
 window.onload = () => {
-    if (!user) { window.location.href = "/"; return; }
-
-    document.getElementById('welcomeName').innerText = `Olá, ${user.name}`;
-    document.getElementById('menuName').innerText = user.name;
-    document.getElementById('menuDept').innerText = user.department;
-    document.getElementById('userInitial').innerText = user.name.charAt(0).toUpperCase();
-    updateAvatar();
 
     const role = user.role.toUpperCase();
     const dept = user.department;
 
     const deptsPrivilegiados = ['Marketing', 'Núcleo de Gestão', 'Direção'];
-    const temAcessoTotal = deptsPrivilegiados.includes(dept) || role === 'ADMIN' || role === 'LOGISTICA';
+    const temAcessoTotal = (deptsPrivilegiados.includes(dept) || role === 'ADMIN' || role === 'LOGISTICA') && role !== 'MEMBRO';
+
+    document.getElementById('welcomeName').innerText = 'Olá, ' + user.name + '!';
+    document.getElementById('menuName').innerText = user.name;
+    document.getElementById('menuDept').innerText = user.department;
+    updateAvatar();
 
     document.getElementById('marketingArea').style.display = 'block';
 
@@ -420,13 +419,16 @@ window.onload = () => {
     } else if (role === 'COORDENADOR') {
         mostrarBotoes(['btn-requisicao', 'btn-galeria-publica', 'btn-turnos', 'btn-assiduidade']);
         esconderBotoes(['btn-upload', 'btn-gestao']);
-    } else {
+    } else { 
         mostrarBotoes(['btn-turnos', 'btn-assiduidade']);
         esconderBotoes(['btn-requisicao', 'btn-upload', 'btn-gestao', 'btn-galeria-publica']);
-    }
-
-    if (role === 'MEMBRO') {
-        document.getElementById('btnTabStats').style.display = 'none';
+        
+        if (document.getElementById('btnTabStats')) {
+            document.getElementById('btnTabStats').style.display = 'none';
+        }
+        if (document.getElementById('btnTabHist')) {
+            document.getElementById('btnTabHist').style.display = 'none';
+        }
     }
 
     if (role === 'ADMIN' || role === 'LOGISTICA') {
@@ -450,6 +452,11 @@ window.onload = () => {
         
         const role = user.role.toUpperCase();
         if (role === 'MEMBRO') {
+            // Membros só veem o seu próprio resumo — esconder tabs e secção de equipa
+            document.querySelector('.tabs-container').style.display = 'none';
+            document.getElementById('tab-historico').style.display = 'none';
+            document.getElementById('tab-estatisticas').style.display = 'none';
+            document.getElementById('coordAttendanceSection').style.display = 'none';
             document.getElementById('memberAttendanceStatus').style.display = 'block';
             loadMemberAttendance();
         } else {
@@ -487,7 +494,7 @@ async function loadData() {
     const role = user.role.toUpperCase();
     const dept = user.department.toLowerCase();
     const deptsPrivilegiados = ['marketing', 'núcleo de gestão', 'direção', 'logística'];
-    const podeValidar = role === 'ADMIN' || role === 'LOGISTICA' || deptsPrivilegiados.includes(dept);
+    const podeValidar = (role === 'ADMIN' || role === 'LOGISTICA' || deptsPrivilegiados.includes(dept)) && role !== 'MEMBRO';
 
     document.getElementById('reqTable').innerHTML = data.map(i => {
         let botoesHtml = `<button class="action-btn btn-info" onclick="verInfoPedido(${i.id})">Info</button>`;
@@ -559,7 +566,7 @@ async function carregarListaGlobalFaltas() {
         const role = user.role.toUpperCase();
         const dept = user.department.toLowerCase();
         const deptsPrivilegiados = ['marketing', 'logística', 'núcleo de gestão', 'direção'];
-        const podeValidar = role === 'ADMIN' || role === 'COORDENADOR' || deptsPrivilegiados.includes(dept);
+        const podeValidar = (role === 'ADMIN' || role === 'COORDENADOR' || deptsPrivilegiados.includes(dept)) && role !== 'MEMBRO';
 
         const grupos = {};
         data.forEach(row => {
