@@ -70,6 +70,7 @@
         </p>
     </div>
 
+    <script src="/notify.js"></script>
     <script>
         async function doRegister() {
             const name = document.getElementById('regName').value;
@@ -79,7 +80,7 @@
             const role = document.getElementById('regRole').value;
 
             if (!name || !email || !password || !department) {
-                alert("Por favor, preencha todos os campos obrigatórios.");
+                toast("Por favor, preencha todos os campos obrigatórios.", "warning");
                 return;
             }
 
@@ -88,7 +89,7 @@
                 email: email,
                 password: password,
                 department: department,
-                role: role // Envia o cargo selecionado (MEMBRO ou COORDENADOR)
+                role: role
             };
 
             try {
@@ -99,14 +100,14 @@
                 });
 
                 if (res.ok) {
-                    alert("Conta criada com sucesso! Agora pode fazer o login.");
-                    window.location.href = "/";
+                    toast("Conta criada com sucesso! Agora pode fazer o login.", "success");
+                    setTimeout(() => window.location.href = "/", 1500);
                 } else {
                     const errorText = await res.text();
-                    alert("Erro ao criar conta: " + errorText);
+                    toast("Erro ao criar conta: " + errorText, "error");
                 }
             } catch (err) {
-                alert("Erro de ligação ao servidor.");
+                toast("Erro de ligação ao servidor.", "error");
             }
         }
     </script>

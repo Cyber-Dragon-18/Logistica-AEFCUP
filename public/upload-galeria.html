@@ -121,6 +121,7 @@
         </section>
     </div>
 
+    <script src="/notify.js"></script>
     <script>
         const user = JSON.parse(localStorage.getItem('user'));
         if (!user) window.location.href = "/";
@@ -151,7 +152,8 @@
             const title = document.getElementById('picTitle').value;
 
             if (!coverFile || otherFiles.length === 0 || !title) {
-                return alert("Preenche todos os campos antes de publicar!");
+                toast("Preenche todos os campos antes de publicar!", "warning");
+                return;
             }
 
             btn.innerText = "A publicar álbum...";
@@ -168,10 +170,10 @@
             try {
                 const res = await fetch('/api/gallery/upload', { method: 'POST', body: formData });
                 if (res.ok) {
-                    alert("Álbum publicado com sucesso!");
-                    window.location.href = '/dashboard.html';
+                    toast("Álbum publicado com sucesso!", "success");
+                    setTimeout(() => window.location.href = '/dashboard.html', 1200);
                 } else {
-                    alert("Erro no upload.");
+                    toast("Erro no upload. Tenta novamente.", "error");
                 }
             } catch (err) {
                 console.error(err);

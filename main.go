@@ -71,7 +71,8 @@ type GridCell struct {
 	Col     int    `json:"c"`
 	Content string `json:"content"`
 	IsSlot  bool   `json:"isSlot"`
-	Span    int    `json:"span"` // Novo campo
+	ColSpan int    `json:"colSpan"`
+	RowSpan int    `json:"rowSpan"`
 }
 
 type GridPayload struct {
@@ -151,6 +152,7 @@ func main() {
 	http.HandleFunc("/api/attendance/justify", handleJustifyAbsence)
 	http.HandleFunc("/api/attendance/admin-list", handleAdminAttendanceList)
 	http.HandleFunc("/api/attendance/validate", handleValidateAttendance)
+	http.HandleFunc("/api/debug/unavailability", handleDebugUnavailability)
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
@@ -540,13 +542,35 @@ func handleDeletePhoto(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleListShifts(w http.ResponseWriter, r *http.Request) {
-	// Usamos um LEFT JOIN para trazer os slots e as inscrições juntas numa só viagem à BD
+	// Migração segura: garantir que a coluna event_id existe
+	db.Exec(`ALTER TABLE shift_slots ADD COLUMN IF NOT EXISTS event_id INTEGER DEFAULT 0`)
+	db.Exec(`ALTER TABLE shift_enrollments ADD COLUMN IF NOT EXISTS event_id INTEGER DEFAULT 0`)
+
+	type slotData struct {
+		ID      int                      `json:"id"`
+		EventID int                      `json:"eventId"`
+		R       int                      `json:"r"`
+		C       int                      `json:"c"`
+		Content string                   `json:"content"`
+		IsSlot  bool                     `json:"isSlot"`
+		ColSpan int                      `json:"colSpan"`
+		RowSpan int                      `json:"rowSpan"`
+		Users   []map[string]interface{} `json:"users"`
+	}
+
+	type eventData struct {
+		EventID   int        `json:"eventId"`
+		EventName string     `json:"eventName"`
+		Date      string     `json:"date"`
+		Slots     []slotData `json:"slots"`
+	}
+
 	query := `
-        SELECT s.id, s.row_idx, s.col_idx, s.content, s.is_slot, s.event_name, s.event_date,
-               e.user_name, e.selected
+        SELECT s.id, s.event_id, s.row_idx, s.col_idx, s.content, s.is_slot, s.event_name, s.event_date,
+               s.col_span, s.row_span, e.user_name, e.selected
         FROM shift_slots s
         LEFT JOIN shift_enrollments e ON s.id = e.slot_id
-        ORDER BY s.row_idx, s.col_idx`
+        ORDER BY s.event_id, s.row_idx, s.col_idx`
 
 	rows, err := db.Query(query)
 	if err != nil {
@@ -555,32 +579,41 @@ func handleListShifts(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	type slotData struct {
-		ID      int                      `json:"id"`
-		R       int                      `json:"r"`
-		C       int                      `json:"c"`
-		Content string                   `json:"content"`
-		IsSlot  bool                     `json:"isSlot"`
-		Users   []map[string]interface{} `json:"users"`
-	}
-
+	eventsMap := make(map[int]*eventData)
 	slotsMap := make(map[int]*slotData)
-	var eventName, eventDate string
-	var order []int
+	var eventOrder []int
+	var slotOrder []int
+	slotEventMap := make(map[int]int) // slot id -> event id
 
 	for rows.Next() {
-		var id, r, c int
+		var id, eventID, r, c, cs, rs int
 		var content, en, ed string
 		var isSlot bool
 		var uName sql.NullString
 		var sel sql.NullBool
 
-		rows.Scan(&id, &r, &c, &content, &isSlot, &en, &ed, &uName, &sel)
-		eventName, eventDate = en, ed
+		rows.Scan(&id, &eventID, &r, &c, &content, &isSlot, &en, &ed, &cs, &rs, &uName, &sel)
+
+		if _, ok := eventsMap[eventID]; !ok {
+			eventsMap[eventID] = &eventData{
+				EventID: eventID, EventName: en, Date: ed,
+				Slots: []slotData{},
+			}
+			eventOrder = append(eventOrder, eventID)
+		}
+		if content != "SISTEMA_INDISPONIBILIDADE" && en != "" {
+			eventsMap[eventID].EventName = en
+			eventsMap[eventID].Date = ed
+		}
 
 		if _, ok := slotsMap[id]; !ok {
-			slotsMap[id] = &slotData{ID: id, R: r, C: c, Content: content, IsSlot: isSlot, Users: []map[string]interface{}{}}
-			order = append(order, id)
+			slotsMap[id] = &slotData{
+				ID: id, EventID: eventID, R: r, C: c, Content: content,
+				IsSlot: isSlot, ColSpan: cs, RowSpan: rs,
+				Users: []map[string]interface{}{},
+			}
+			slotOrder = append(slotOrder, id)
+			slotEventMap[id] = eventID
 		}
 		if uName.Valid {
 			slotsMap[id].Users = append(slotsMap[id].Users, map[string]interface{}{
@@ -589,33 +622,78 @@ func handleListShifts(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	var finalSlots []interface{}
-	for _, id := range order {
-		finalSlots = append(finalSlots, slotsMap[id])
+	// Associate slots to events
+	eventSlots := make(map[int][]slotData)
+	for _, sid := range slotOrder {
+		s := slotsMap[sid]
+		eid := slotEventMap[sid]
+		eventSlots[eid] = append(eventSlots[eid], *s)
 	}
 
+	var finalEvents []eventData
+	for _, eid := range eventOrder {
+		ev := eventsMap[eid]
+		ev.Slots = eventSlots[eid]
+		if ev.Slots == nil {
+			ev.Slots = []slotData{}
+		}
+		finalEvents = append(finalEvents, *ev)
+	}
+	if finalEvents == nil {
+		finalEvents = []eventData{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"eventName": eventName,
-		"date":      eventDate,
-		"slots":     finalSlots,
+		"events": finalEvents,
 	})
 }
 
 func handleBookShift(w http.ResponseWriter, r *http.Request) {
 	var data struct {
-		ID   int    `json:"id"`
-		User string `json:"userName"`
+		ID       int    `json:"id"`
+		EventID  int    `json:"eventId"`
+		UserName string `json:"userName"`
 	}
-	json.NewDecoder(r.Body).Decode(&data)
+	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
 
-	// Usamos ON CONFLICT para evitar erros se ele clicar duas vezes rápido
-	query := `INSERT INTO shift_enrollments (slot_id, user_name) 
-              VALUES ($1, $2) 
-              ON CONFLICT DO NOTHING`
+	// Se ID < 0, é um pedido de indisponibilidade — garantir que o slot existe e resolver o ID real
+	if data.ID < 0 {
+		db.Exec(`
+			INSERT INTO shift_slots (event_id, row_idx, col_idx, content, is_slot, event_name, event_date, col_span, row_span)
+			VALUES ($1, -1, -1, 'SISTEMA_INDISPONIBILIDADE', true, '', '', 1, 1)
+			ON CONFLICT DO NOTHING`, data.EventID)
+		var resolvedID int
+		if err := db.QueryRow(`SELECT id FROM shift_slots WHERE event_id = $1 AND content = 'SISTEMA_INDISPONIBILIDADE'`, data.EventID).Scan(&resolvedID); err != nil {
+			http.Error(w, "Erro ao obter slot de indisponibilidade: "+err.Error(), 500)
+			return
+		}
+		data.ID = resolvedID
+	}
 
-	_, err := db.Exec(query, data.ID, data.User)
-	if err != nil {
-		http.Error(w, err.Error(), 500)
+	// Verificar se utilizador já marcou indisponibilidade para este evento
+	var unavSlotID int
+	unavErr := db.QueryRow(`SELECT id FROM shift_slots WHERE event_id = $1 AND content = 'SISTEMA_INDISPONIBILIDADE'`, data.EventID).Scan(&unavSlotID)
+	if unavErr == nil {
+		var count int
+		db.QueryRow(`SELECT COUNT(*) FROM shift_enrollments WHERE slot_id = $1 AND user_name = $2`, unavSlotID, data.UserName).Scan(&count)
+		if count > 0 && data.ID != unavSlotID {
+			http.Error(w, "Utilizador marcado como indisponível para este evento", 403)
+			return
+		}
+		if count > 0 && data.ID == unavSlotID {
+			w.WriteHeader(200)
+			return
+		}
+	}
+
+	if _, err := db.Exec(`INSERT INTO shift_enrollments (slot_id, user_name, event_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+		data.ID, data.UserName, data.EventID); err != nil {
+		log.Printf("Erro ao inserir enrollment slot=%d user=%s event=%d: %v", data.ID, data.UserName, data.EventID, err)
+		http.Error(w, "Erro ao guardar: "+err.Error(), 500)
 		return
 	}
 	w.WriteHeader(200)
@@ -623,32 +701,65 @@ func handleBookShift(w http.ResponseWriter, r *http.Request) {
 
 func handleSaveGrid(w http.ResponseWriter, r *http.Request) {
 	var data GridPayload
-	json.NewDecoder(r.Body).Decode(&data)
-
-	tx, _ := db.Begin() // Inicia transação para ser super rápido
-
-	tx.Exec("DELETE FROM shift_enrollments")
-	tx.Exec("DELETE FROM shift_slots")
-
-	stmt, _ := tx.Prepare("INSERT INTO shift_slots (row_idx, col_idx, content, is_slot, event_name, event_date, col_span) VALUES ($1, $2, $3, $4, $5, $6, $7)")
-
-	for _, cell := range data.Cells {
-		stmt.Exec(cell.Row, cell.Col, cell.Content, cell.IsSlot, data.EventName, data.Date, cell.Span)
+	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+		http.Error(w, "Dados inválidos", 400)
+		return
 	}
 
-	tx.Commit() // Grava tudo de uma vez
-	w.WriteHeader(http.StatusOK)
+	tx, err := db.Begin()
+	if err != nil {
+		http.Error(w, "Erro ao iniciar transação", 500)
+		return
+	}
+
+	// Gerar novo event_id
+	var newEventID int
+	if err = tx.QueryRow(`SELECT COALESCE(MAX(event_id), 0) + 1 FROM shift_slots`).Scan(&newEventID); err != nil {
+		tx.Rollback()
+		http.Error(w, "Erro ao gerar ID de evento", 500)
+		return
+	}
+
+	// Inserir slot de indisponibilidade para este evento
+	if _, err = tx.Exec(`INSERT INTO shift_slots (event_id, row_idx, col_idx, content, is_slot, event_name, event_date, col_span, row_span)
+        VALUES ($1, -1, -1, 'SISTEMA_INDISPONIBILIDADE', true, $2, $3, 1, 1)`,
+		newEventID, data.EventName, data.Date); err != nil {
+		log.Printf("Erro ao criar slot indisponibilidade para evento %d: %v", newEventID, err)
+		tx.Rollback()
+		http.Error(w, "Erro ao inicializar evento", 500)
+		return
+	}
+
+	// Inserir os slots da grelha
+	stmt, err := tx.Prepare(`INSERT INTO shift_slots (event_id, row_idx, col_idx, content, is_slot, event_name, event_date, col_span, row_span)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`)
+	if err != nil {
+		tx.Rollback()
+		http.Error(w, "Erro ao preparar inserção", 500)
+		return
+	}
+	defer stmt.Close()
+
+	for _, cell := range data.Cells {
+		stmt.Exec(newEventID, cell.Row, cell.Col, cell.Content, cell.IsSlot, data.EventName, data.Date, cell.ColSpan, cell.RowSpan)
+	}
+
+	if err = tx.Commit(); err != nil {
+		http.Error(w, "Erro ao confirmar transação", 500)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"eventId": newEventID})
 }
 
 func handleClearShift(w http.ResponseWriter, r *http.Request) {
 	var data struct {
-		ID   int    `json:"id"`
-		User string `json:"userName"`
+		ID       int    `json:"id"`
+		UserName string `json:"userName"`
 	}
 	json.NewDecoder(r.Body).Decode(&data)
-
-	// Apaga apenas a inscrição deste utilizador neste slot
-	_, err := db.Exec("DELETE FROM shift_enrollments WHERE slot_id = $1 AND user_name = $2", data.ID, data.User)
+	_, err := db.Exec("DELETE FROM shift_enrollments WHERE slot_id = $1 AND user_name = $2", data.ID, data.UserName)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
@@ -665,11 +776,7 @@ func handleSelectUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Erro no JSON", 400)
 		return
 	}
-
-	// O NOT selected é a forma mais rápida de alternar o estado
-	query := "UPDATE shift_enrollments SET selected = NOT selected WHERE slot_id = $1 AND user_name = $2"
-
-	_, err := db.Exec(query, data.SlotID, data.UserName)
+	_, err := db.Exec("UPDATE shift_enrollments SET selected = NOT selected WHERE slot_id = $1 AND user_name = $2", data.SlotID, data.UserName)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
@@ -681,22 +788,73 @@ func handleDeleteGrid(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		return
 	}
-	// 1. Apaga primeiro as inscrições porque elas dependem dos slots
-	_, err := db.Exec("DELETE FROM shift_enrollments")
-	if err != nil {
-		log.Printf("Erro ao apagar inscrições: %v", err)
+	var data struct {
+		EventID int `json:"eventId"`
 	}
+	json.NewDecoder(r.Body).Decode(&data)
 
-	// 2. Apaga os slots
-	_, err = db.Exec("DELETE FROM shift_slots")
-	if err != nil {
-		log.Printf("Erro ao apagar slots: %v", err)
+	if data.EventID == 0 {
+		// Fallback: apagar tudo (comportamento anterior)
+		db.Exec("DELETE FROM shift_enrollments")
+		db.Exec("DELETE FROM shift_slots")
+		db.Exec("ALTER SEQUENCE shift_slots_id_seq RESTART WITH 1")
+	} else {
+		// Apagar apenas este evento
+		db.Exec("DELETE FROM shift_enrollments WHERE event_id = $1", data.EventID)
+		db.Exec("DELETE FROM shift_slots WHERE event_id = $1", data.EventID)
 	}
-
-	// 3. Reinicia o contador para novos postos começarem no ID 1
-	db.Exec("ALTER SEQUENCE shift_slots_id_seq RESTART WITH 1")
-
 	w.WriteHeader(http.StatusOK)
+}
+
+func handleDebugUnavailability(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	result := map[string]interface{}{}
+
+	// Passo 1: slot 0 existe?
+	var slotCount int
+	err := db.QueryRow("SELECT COUNT(*) FROM shift_slots WHERE id = 0").Scan(&slotCount)
+	if err != nil {
+		result["step1_slot0_exists"] = "ERRO: " + err.Error()
+	} else {
+		result["step1_slot0_exists"] = slotCount > 0
+	}
+
+	// Passo 2: tentar criar slot 0
+	_, err = db.Exec(`INSERT INTO shift_slots (id, row_idx, col_idx, content, is_slot, event_name, event_date, col_span, row_span)
+		VALUES (0, -1, -1, 'SISTEMA_INDISPONIBILIDADE', true, '', '', 1, 1)
+		ON CONFLICT (id) DO NOTHING`)
+	if err != nil {
+		result["step2_create_slot0"] = "ERRO: " + err.Error()
+	} else {
+		result["step2_create_slot0"] = "OK"
+	}
+
+	// Passo 3: tentar inserir enrollment de teste
+	_, err = db.Exec("DELETE FROM shift_enrollments WHERE slot_id = 0 AND user_name = '__teste_debug__'")
+	_, err = db.Exec("INSERT INTO shift_enrollments (slot_id, user_name) VALUES (0, '__teste_debug__')")
+	if err != nil {
+		result["step3_insert_enrollment"] = "ERRO: " + err.Error()
+	} else {
+		result["step3_insert_enrollment"] = "OK"
+		db.Exec("DELETE FROM shift_enrollments WHERE user_name = '__teste_debug__'")
+	}
+
+	// Passo 4: constraint da tabela enrollments
+	rows, err := db.Query(`SELECT conname, pg_get_constraintdef(oid) FROM pg_constraint WHERE conrelid = 'shift_enrollments'::regclass`)
+	if err != nil {
+		result["step4_constraints"] = "ERRO: " + err.Error()
+	} else {
+		defer rows.Close()
+		constraints := []string{}
+		for rows.Next() {
+			var name, def string
+			rows.Scan(&name, &def)
+			constraints = append(constraints, name+": "+def)
+		}
+		result["step4_constraints"] = constraints
+	}
+
+	json.NewEncoder(w).Encode(result)
 }
 
 func handleAttendanceMembers(w http.ResponseWriter, r *http.Request) {

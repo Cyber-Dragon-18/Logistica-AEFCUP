@@ -395,6 +395,7 @@
         </div>
     </div>
 
+<script src="/notify.js"></script>
 <script>
     const user = JSON.parse(localStorage.getItem('user'));
     if (!user) window.location.href = "/";
@@ -405,7 +406,7 @@ window.onload = () => {
     const dept = user.department;
 
     const deptsPrivilegiados = ['Marketing', 'Núcleo de Gestão', 'Direção'];
-    const temAcessoTotal = (deptsPrivilegiados.includes(dept) || role === 'ADMIN' || role === 'LOGISTICA') && role !== 'MEMBRO';
+    const temAcessoTotal = (deptsPrivilegiados.includes(dept) || role === 'ADMIN') && role !== 'MEMBRO';
 
     document.getElementById('welcomeName').innerText = 'Olá, ' + user.name + '!';
     document.getElementById('menuName').innerText = user.name;
@@ -417,6 +418,9 @@ window.onload = () => {
     if (temAcessoTotal) {
         mostrarBotoes(['btn-requisicao', 'btn-upload', 'btn-gestao', 'btn-galeria-publica', 'btn-turnos', 'btn-assiduidade']);
     } else if (role === 'COORDENADOR') {
+        mostrarBotoes(['btn-requisicao', 'btn-galeria-publica', 'btn-turnos', 'btn-assiduidade']);
+        esconderBotoes(['btn-upload', 'btn-gestao']);
+    } else if(role == "LOGISTICA") {
         mostrarBotoes(['btn-requisicao', 'btn-galeria-publica', 'btn-turnos', 'btn-assiduidade']);
         esconderBotoes(['btn-upload', 'btn-gestao']);
     } else { 
@@ -542,12 +546,12 @@ function verInfoPedido(id) {
         infoText.innerText = pedido.description;
         document.getElementById("requestModal").style.display = "block";
     } else {
-        alert("Descrição: " + pedido.description);
+        toast("Descrição: " + pedido.description, "info");
     }
 }
 
 async function validarPedido(id, novoStatus) {
-    if (!confirm(`Desejas marcar este pedido como ${novoStatus}?`)) return;
+    if (!await confirmDialog(`Desejas marcar este pedido como ${novoStatus}?`, { icon: "📋" })) return;
     try {
         const res = await fetch('/api/requests/update', { // Rota correta do main.go
             method: 'POST',
@@ -653,19 +657,19 @@ async function carregarListaGlobalFaltas() {
     async function enviarJustificacao() {
         const id = document.getElementById('absenceIdToJustify').value;
         const reason = document.getElementById('justificationText').value;
-        if (!reason.trim()) return alert("Escreve um motivo.");
+        if (!reason.trim()) { toast("Escreve um motivo.", "warning"); return; }
         try {
             const res = await fetch('/api/attendance/justify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ absenceId: parseInt(id), reason: reason })
             });
-            if (res.ok) { alert("Enviada!"); fecharModal(); loadMemberAttendance(); }
+            if (res.ok) { toast("Justificação enviada!", "success"); fecharModal(); loadMemberAttendance(); }
         } catch (err) { console.error(err); }
     }
 
     async function validarJustificacao(id, aceitar) {
-        if (!confirm(aceitar ? "Aceitar?" : "Recusar?")) return;
+    if (!await confirmDialog(aceitar ? "Aceitar esta justificação?" : "Recusar esta justificação?", { icon: aceitar ? "✅" : "❌", danger: !aceitar })) return;
         try {
             const res = await fetch('/api/attendance/validate', {
                 method: 'POST',

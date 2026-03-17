@@ -12,7 +12,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Logística">
     <link rel="apple-touch-icon" href="/lib/LogoBranco.png">
-    <script src="/notify.js"></script>
+
 </head>
 <body>
     <div class="card">
@@ -37,32 +37,41 @@
         </div>
     </div>
 
+    <script src="/notify.js"></script>
     <script>
         const user = JSON.parse(localStorage.getItem('user'));
-// Permite que tanto LOGISTICA como ADMIN acedam à página
         if (!user || (user.role !== 'LOGISTICA' && user.role !== 'ADMIN')) {
             window.location.href = "/dashboard.html";
         }
+        // Always send LOGISTICA as the API role — ADMIN is treated as equivalent
+        const apiRole = 'LOGISTICA';
+
         async function loadUsers() {
-            const r = await fetch(`/api/admin/users?role=${user.role}`);
+            const r = await fetch(`/api/admin/users?role=${apiRole}`);
             const users = await r.json();
             
-            document.getElementById('userTable').innerHTML = users.map(u => `
+            document.getElementById('userTable').innerHTML = users.map(u => {
+                const isLogistica = u.role === 'LOGISTICA';
+                const newRole = isLogistica ? 'COORDENADOR' : 'LOGISTICA';
+                const btnColor = isLogistica ? 'var(--danger)' : 'var(--success)';
+                const btnLabel = isLogistica ? 'Remover Admin' : 'Tornar Logística';
+                return `
                 <tr>
                     <td><strong>${u.name}</strong></td>
                     <td>${u.email}</td>
                     <td>${u.department}</td>
-                    <td><span class="status ${u.role === 'LOGISTICA' ? 'status-accepted' : 'status-pending'}">${u.role}</span></td>
+                    <td><span class="status ${isLogistica ? 'status-accepted' : 'status-pending'}">${u.role}</span></td>
                     <td>
-                        <button onclick="changeRole(${u.id}, '${u.role === 'LOGISTICA' ? 'COORDENADOR' : 'LOGISTICA'}')" 
-                                style="font-size:11px; background:${u.role === 'LOGISTICA' ? 'var(--danger)' : 'var(--success)'}">
-                            ${u.role === 'LOGISTICA' ? 'Remover Admin' : 'Tornar Logística'}
+                        <button onclick="changeRole(${u.id}, '${newRole}')" 
+                                style="font-size:11px; background:${btnColor}">
+                            ${btnLabel}
                         </button>
                     </td>
-                    <td> <button onclick="deleteUser(${u.id})" style="background:var(--danger); font-size:11px; margin-left:5px;">Eliminar</button>
+                    <td>
+                        <button onclick="deleteUser(${u.id})" style="background:var(--danger); font-size:11px; margin-left:5px;">Eliminar</button>
                     </td>
-                </tr>
-            `).join('');
+                </tr>`;
+            }).join('');
         }
 
         async function deleteUser(userId) {
@@ -74,7 +83,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         id: userId, 
-                        adminRole: user.role // Garante que envia a role correta
+                        adminRole: apiRole
                     })
                 });
 
@@ -89,13 +98,13 @@
             }
         }
 
-        async function changeRole(id, newRole) {
-            if(!await confirmDialog(`Mudar cargo para ${newRole}?`, { icon: "👤" })) return;
+        async function changeRole(id, targetRole) {
+            if(!await confirmDialog(`Mudar cargo para ${targetRole}?`, { icon: "👤" })) return;
             
             await fetch('/api/admin/update-role', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ id, role: newRole, adminRole: user.role })
+                body: JSON.stringify({ id, role: targetRole, adminRole: apiRole })
             });
             loadUsers();
         }

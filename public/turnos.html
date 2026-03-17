@@ -40,6 +40,14 @@
             padding: 12px 20px !important; /* Botões maiores para dedos */
             font-size: 14px !important;
         }
+        .event-block {
+            margin-bottom: 50px;
+        }
+        .event-block > hr {
+            border: none;
+            border-top: 2px dashed #e0e0e0;
+            margin-top: 30px;
+        }
     </style>
 </head>
 <body>
@@ -75,17 +83,10 @@
             <p><small>💡 <b>Dica:</b> Escreve o texto nas células. Dá <b>duplo clique</b> numa célula para a transformar numa vaga de inscrição (ficará azul).</small></p>
         </div>
 
-        <div id="currentEventHeader" style="text-align:center; margin-bottom:20px;">
-            <h1 id="eventTitle" style="color:#d93025; margin:0;">A carregar turnos...</h1>
-            <p id="eventDate" style="color:#70757a;"></p>
-        </div>
-
-        <table class="shift-table">
-
-            <tbody id="shiftTableBody"></tbody>
-        </table>
+        <div id="eventsContainer"></div>
     </div>
 
+    <script src="/notify.js"></script>
     <script>
         const user = JSON.parse(localStorage.getItem('user'));
         const isAdmin = user && (user.role.toUpperCase() === 'LOGISTICA' || user.role.toUpperCase() === 'ADMIN');
@@ -110,124 +111,244 @@ async function loadShifts() {
     try {
         const res = await fetch('/api/shifts/list');
         const data = await res.json();
-        const tableBody = document.getElementById('shiftTableBody');
-        
-        // 1. Validar se existem dados e atualizar o cabeçalho do evento
-        if (data && data.slots && data.slots.length > 0) {
-            document.getElementById('eventTitle').innerText = data.eventName || "Grelha de Turnos";
-            document.getElementById('eventDate').innerText = data.date ? `Data: ${data.date}` : "";
-        } else {
-            document.getElementById('eventTitle').innerText = "Nenhum Evento Ativo";
-            tableBody.innerHTML = '<tr><td colspan="100%">Aguarde pela publicação da grelha.</td></tr>';
+        const container = document.getElementById('eventsContainer');
+
+        const events = (data.events || []).filter(ev =>
+            (ev.slots || []).some(s => s.content !== 'SISTEMA_INDISPONIBILIDADE')
+        );
+
+        if (events.length === 0) {
+            container.innerHTML = `
+                <div id="currentEventHeader" style="text-align:center; margin-bottom:20px;">
+                    <h1 style="color:#d93025; margin:0;">Nenhum Evento Ativo</h1>
+                    <p style="color:#70757a;"></p>
+                </div>
+                <table class="shift-table"><tbody><tr><td>Aguarde pela publicação da grelha.</td></tr></tbody></table>
+                <div class="card" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; text-align: center; background: #fff5f5;">
+                    <div>
+                        <p style="margin: 0 0 10px 0; color: #d93025; font-weight: bold;">Não tens disponibilidade para este evento?</p>
+                        <button onclick="setUnavailability(null)" style="background: #d93025; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">
+                            Indicar Sem Disponibilidade
+                        </button>
+                    </div>
+                </div>`;
             return;
         }
 
-        // 2. Organizar os dados numa matriz (grid[linha][coluna])
-        const grid = [];
-        data.slots.forEach(s => {
-            if (!grid[s.r]) grid[s.r] = [];
-            grid[s.r][s.c] = s;
-        });
+        container.innerHTML = '';
 
-        // 3. Gerar o HTML da tabela
-        let html = "";
-        grid.forEach((row, rowIndex) => {
-            html += "<tr>";
-            row.forEach(cell => {
-                if (!cell) return; // Salta se a célula estiver vazia
+        for (const event of events) {
+            // --- LÓGICA DE INDISPONIBILIDADE ---
+            const unavailabilitySlot = (event.slots || []).find(s => s.content === 'SISTEMA_INDISPONIBILIDADE');
+            const unavailableUsers = unavailabilitySlot ? (unavailabilitySlot.users || []) : [];
 
-                const isHeader = rowIndex === 0; // Identifica se é a primeira linha
-                const isSlot = cell.isSlot;
-                const colspan = cell.span || 1;
+            const isUnavailable = unavailableUsers.some(u => u.name === user.name);
 
-                // Estilo Dinâmico: Vermelho para o topo, Azul para as vagas
-                let style = `
-                    padding: 12px;
-                    border: 1px solid #ccc;
-                    text-align: center;
-                    ${isHeader ? 'background-color: #d93025; color: white; font-weight: bold; text-transform: uppercase;' : ''}
-                    ${isSlot && !isHeader ? 'background-color: #e8f0fe; border: 2px solid #1a73e8;' : ''}
-                `;
+            // Secção de admin: lista de indisponíveis
+            let adminUnavailHTML = '';
+            if (isAdmin) {
+                const listItems = unavailableUsers.length > 0
+                    ? unavailableUsers.map(u => `
+                        <span class="user-tag" style="background: #fee; border-color: #f55; color: #d93025; display: flex; align-items: center; gap: 5px;">
+                            ${u.name} 
+                            <button onclick="adminClearUser(${unavailabilitySlot ? unavailabilitySlot.id : 0}, '${u.name}')" style="background:none; border:none; color:red; cursor:pointer;">&times;</button>
+                        </span>`).join('')
+                    : '<small>Ninguém marcou indisponibilidade ainda.</small>';
 
-                // Conteúdo da célula
-                let cellContent = "";
-                if (isSlot) {
-                    // Renderiza inscritos e botão se for uma vaga
-                    cellContent = renderSlot(cell);
-                } else {
-                    // Renderiza apenas o texto se for uma etiqueta
-                    cellContent = `<b>${cell.content || ""}</b>`;
-                }
+                adminUnavailHTML = `
+                    <div style="display:block; margin-top: 15px; border-top: 1px solid #ddd; padding-top: 10px;">
+                        <h4 style="margin: 0 0 5px 0;">🚫 Membros sem Disponibilidade:</h4>
+                        <div style="display: flex; flex-wrap: wrap; gap: 5px; justify-content: center;">${listItems}</div>
+                    </div>`;
+            }
 
-                html += `<td colspan="${colspan}" style="${style}">${cellContent}</td>`;
+            // Secção de utilizador: botão ou mensagem bloqueada
+            const userUnavailHTML = isUnavailable
+                ? `<b style='color: #d93025;'>🚫 Declaraste indisponibilidade. Tabela bloqueada.</b>`
+                : `<p style="margin: 0 0 10px 0; color: #d93025; font-weight: bold;">Não tens disponibilidade para este evento?</p>
+                   <button id="btnNoAvailability_${event.eventId}" onclick="setUnavailability(${event.eventId})" style="background: #d93025; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">
+                       Indicar Sem Disponibilidade
+                   </button>`;
+
+            // --- LÓGICA DA TABELA ---
+            const tableSlots = (event.slots || []).filter(s => s.content !== 'SISTEMA_INDISPONIBILIDADE' && s.r !== undefined && s.c !== undefined);
+
+            const grid = [];
+            tableSlots.forEach(s => {
+                if (!grid[s.r]) grid[s.r] = [];
+                grid[s.r][s.c] = s;
             });
-            html += "</tr>";
-        });
 
-        tableBody.innerHTML = html;
+            let tableHTML = "";
+            grid.forEach((row, rowIndex) => {
+                if (!row) return; // Salta linhas vazias
+                tableHTML += "<tr>";
+                row.forEach(cell => {
+                    if (!cell) return;
+                    const isHeader = rowIndex === 0;
+                    const colspan = cell.colSpan || 1;
+                    const rowspan = cell.rowSpan || 1;
+                    let style = `padding: 12px; border: 1px solid #ccc; text-align: center;
+                        ${isHeader ? 'background-color: #d93025; color: white; font-weight: bold;' : ''}
+                        ${cell.isSlot && !isHeader ? 'background-color: #e8f0fe; border: 2px solid #1a73e8;' : ''}`;
+                    let cellContent = cell.isSlot ? renderSlot(cell, event.eventId) : `<b>${cell.content || ""}</b>`;
+                    tableHTML += `<td colspan="${colspan}" rowspan="${rowspan}" style="${style}">${cellContent}</td>`;
+                });
+                tableHTML += "</tr>";
+            });
+
+            const tableOpacity = isUnavailable ? 'opacity: 0.4; pointer-events: none; filter: grayscale(1);' : '';
+
+            // Botão apagar (admin)
+            const deleteBtn = isAdmin
+                ? `<button onclick="deleteGrid(${event.eventId})" style="background:#d93025; color:white; border:none; padding:6px 14px; border-radius:4px; cursor:pointer; font-size:12px;">🗑️ Apagar Este Evento</button>`
+                : '';
+
+            const block = document.createElement('div');
+            block.className = 'event-block';
+            block.id = `event_block_${event.eventId}`;
+            block.innerHTML = `
+                <div id="currentEventHeader" style="text-align:center; margin-bottom:20px;">
+                    <h1 style="color:#d93025; margin:0;">${event.eventName || "Evento sem Nome"}</h1>
+                    <p style="color:#70757a;">${event.date ? `Data: ${event.date}` : ""}</p>
+                    ${isAdmin ? `<div class="no-print" style="margin-top:8px;">${deleteBtn}</div>` : ''}
+                </div>
+                <div class="table-container" style="${tableOpacity}">
+                    <table class="shift-table"><tbody>${tableHTML}</tbody></table>
+                </div>
+                <div class="card no-print" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; text-align: center; background: #fff5f5;">
+                    <div>${userUnavailHTML}</div>
+                    ${adminUnavailHTML}
+                </div>
+                <hr>`;
+            container.appendChild(block);
+        }
+
     } catch (e) {
-        console.error("Erro ao carregar turnos:", e);
-        document.getElementById('eventTitle').innerText = "Erro ao carregar";
+        console.error("Erro no loadShifts:", e);
+        document.getElementById('eventsContainer').innerHTML = '<h1 style="color:#d93025; text-align:center;">Erro ao carregar dados</h1>';
     }
 }
 
 // Função auxiliar para desenhar o conteúdo das vagas (Inscritos + Botão)
-function renderSlot(s) {
+function renderSlot(s, eventId) {
     const users = s.users || [];
     const confirmed = users.filter(u => u.selected);
     const isEnrolled = users.some(u => u.name === user.name);
 
-    // Se for admin, vê todos com ✅/👆. Se for sócio, vê apenas os confirmados.
+    // Renderização dos nomes
     const displayNames = isAdmin 
     ? users.map(u => `
-        <div class="user-tag ${u.selected ? 'selected-user' : ''}" 
-             onclick="selectUser(${s.id}, '${u.name}')" style="cursor:pointer;">
-            ${u.name} ${u.selected ? '✅' : '👆'}
+        <div style="display: flex; align-items: center; justify-content: center; gap: 5px; margin-bottom: 2px;">
+            <div class="user-tag ${u.selected ? 'selected-user' : ''}" 
+                 onclick="selectUser(${s.id}, '${u.name}')" style="cursor:pointer; margin:0;">
+                ${u.name} ${u.selected ? '✅' : '👆'}
+            </div>
+            <button onclick="adminClearUser(${s.id}, '${u.name}')" 
+                    style="background:none; border:none; color:#d93025; cursor:pointer; font-weight:bold; padding:0 5px;">
+                &times;
+            </button>
         </div>`).join('')
     : (confirmed.length > 0 
         ? confirmed.map(u => `<div class="user-tag selected-user">👤 ${u.name}</div>`).join('') 
         : "");
 
+    const statusAction = isEnrolled 
+        ? `<span style="font-size:10px; padding:2px 8px; background:#e8f0fe; color:#1a73e8; border:1px solid #1a73e8; border-radius:4px; font-weight:bold;">✅ Inscrito</span>`
+        : `<button onclick="book(${s.id}, ${eventId})" style="font-size:10px; padding:2px 5px; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer;">Inscrever</button>`;
+
     return `
         <div style="min-height:30px;">${displayNames}</div>
         <div class="no-print" style="margin-top:5px;">
-            ${!isEnrolled 
-                ? `<button onclick="book(${s.id})" style="font-size:10px; padding:2px 5px; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer;">Inscrever</button>`
-                : `<button onclick="clearEnrollment(${s.id})" style="font-size:10px; padding:2px 5px; background:#5f6368; color:white; border:none; border-radius:4px; cursor:pointer;">Sair</button>`}
+            ${statusAction}
         </div>`;
 }
+async function setUnavailability(eventId) {
+    if (!user || !user.name) {
+        toast("Utilizador não identificado", "error");
+        return;
+    }
 
-async function book(id) {
-    // 1. Localizar a célula visualmente antes de enviar o pedido
-    const btn = event.target;
+    if (!await confirmDialog("Tens a certeza que queres indicar que não tens disponibilidade?", { icon: "⚠️", danger: true, okLabel: "Confirmar" })) return;
+
+    // Desativar o botão para evitar duplos cliques
+    const btn = document.getElementById(`btnNoAvailability_${eventId}`);
+    if (btn) { btn.disabled = true; btn.innerText = "A enviar..."; }
+
+    try {
+        const res = await fetch("/api/shifts/book", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: -1, eventId: eventId, userName: user.name })
+        });
+
+        if (!res.ok) {
+            const txt = await res.text();
+            if (btn) { btn.disabled = false; btn.innerText = "Indicar Sem Disponibilidade"; }
+            toast("Erro do servidor: " + txt, "error");
+            return;
+        }
+
+        toast("Indisponibilidade registada com sucesso!", "success");
+        await loadShifts();
+
+    } catch (err) {
+        console.error(err);
+        if (btn) { btn.disabled = false; btn.innerText = "Indicar Sem Disponibilidade"; }
+        toast("Erro de ligação ao servidor. Verifica a tua ligação e tenta novamente.", "error");
+    }
+}
+
+async function adminClearUser(slotId, userName) {
+    if(!await confirmDialog(`Tens a certeza que queres remover ${userName} deste turno?`, { icon: "🗑️", danger: true, okLabel: "Remover" })) return;
+
+    try {
+        const res = await fetch('/api/shifts/clear', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ id: slotId, userName: userName }) 
+        });
+
+        if (res.ok) {
+            loadShifts();
+        } else {
+            toast("Erro ao remover utilizador.", "error");
+        }
+    } catch (e) {
+        console.error("Erro:", e);
+    }
+}
+
+async function book(id, eventId) {
+    // 1. Localizar o botão usando o event global ou passado
+    const btn = window.event ? window.event.target : null;
+    if (!btn) return;
+
     const cell = btn.closest('td');
     const originalContent = cell.innerHTML;
 
-    // 2. Atualização Otimista: Mostrar o nome logo
+    // 2. Atualização Otimista
     const userTag = `<div class="user-tag">👤 ${user.name} (a guardar...)</div>`;
-    btn.style.display = 'none'; // Esconde o botão temporariamente
+    btn.style.display = 'none'; 
     cell.insertAdjacentHTML('afterbegin', userTag);
 
     try {
         const res = await fetch('/api/shifts/book', { 
             method: 'POST', 
             headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({ id, userName: user.name }) 
+            body: JSON.stringify({ id, eventId, userName: user.name }) 
         });
 
         if (!res.ok) throw new Error();
-        
-        // 3. Sucesso: Recarregar apenas para limpar o "(a guardar...)"
         loadShifts(); 
     } catch (e) {
-        // 4. Erro: Se falhar, volta ao que era antes e avisa o user
-        alert("Erro na inscrição. Tenta novamente.");
+        toast("Erro na inscrição. Tenta novamente.", "error");
         cell.innerHTML = originalContent;
     }
 }
 
         async function clearEnrollment(id) {
-            if(confirm("Desejas remover a tua inscrição deste turno?")) {
+            if(await confirmDialog("Desejas remover a tua inscrição deste turno?", { icon: "↩️", danger: true, okLabel: "Remover" })) {
                 await fetch('/api/shifts/clear', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id, userName: user.name }) });
                 loadShifts();
             }
@@ -261,8 +382,8 @@ async function selectUser(slotId, userName) {
         if (!res.ok) throw new Error();
         // Não precisamos de reload imediato, o estado visual já está correto
     } catch (e) {
-        alert("Erro ao salvar seleção. A página vai recarregar.");
-        loadShifts(); // Se falhar, volta ao estado real da BD
+        toast("Erro ao salvar seleção. A página vai recarregar.", "error");
+        loadShifts();
     }
 }
 
@@ -275,24 +396,29 @@ async function selectUser(slotId, userName) {
                 l: r.querySelector('.slot-label').value
             })).filter(s => s.t && s.c && s.l);
 
-            if(!name || slots.length === 0) return alert("Preencha o evento e os postos.");
+            if(!name || slots.length === 0) { toast("Preencha o evento e os postos.", "warning"); return; }
 
             const res = await fetch('/api/shifts/generate', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ eventName: name, date, slots }) });
             if(res.ok) location.reload();
         }
 
-        async function deleteGrid() {
-            if(!confirm("⚠️ Tens a certeza que queres APAGAR toda a grelha e inscrições?")) return;
+        async function deleteGrid(eventId) {
+            const msg = eventId
+                ? "Tens a certeza que queres APAGAR este evento e todas as inscrições?"
+                : "Tens a certeza que queres APAGAR toda a grelha e inscrições?";
+            if(!await confirmDialog(msg, { icon: "⚠️", danger: true, okLabel: "Apagar" })) return;
             
             const res = await fetch('/api/shifts/delete-grid', { 
-                method: 'POST' // O main.go espera um método POST
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ eventId: eventId || 0 })
             });
 
             if(res.ok) {
-                alert("Grelha eliminada com sucesso!");
-                location.reload();
+                toast("Evento eliminado com sucesso!", "success");
+                loadShifts();
             } else {
-                alert("Erro ao apagar grelha. Verifica a ligação ao servidor.");
+                toast("Erro ao apagar. Verifica a ligação ao servidor.", "error");
             }
         }
 
@@ -300,67 +426,74 @@ async function exportToPDF() {
     // TESTE DE CLICK: Se isto não aparecer, o problema é a cache do browser
     console.log("Botão clicado!"); 
 
-    const title = document.getElementById('eventTitle').innerText;
-    const dateText = document.getElementById('eventDate').innerText;
-
     // 1. Criar área de impressão isolada para evitar conflitos de CSS
     const printArea = document.createElement('div');
     printArea.style.padding = "20px";
     printArea.style.background = "white";
 
-    // Cabeçalho do PDF
-    printArea.innerHTML = `
-        <div style="text-align:center; font-family: Arial; margin-bottom: 20px;">
-            <h1 style="color:#d93025; margin:0;">${title}</h1>
-            <p style="color:#555; margin:5px 0 20px 0;">${dateText}</p>
-        </div>
-    `;
+    // Iterar sobre todos os blocos de eventos
+    document.querySelectorAll('.event-block').forEach(block => {
+        const titleEl = block.querySelector('h1');
+        const dateEl = block.querySelector('p');
+        const title = titleEl ? titleEl.innerText : '';
+        const dateText = dateEl ? dateEl.innerText : '';
 
-    // 2. Capturar a tabela real
-    const originalTable = document.querySelector('.shift-table');
-    if (!originalTable) return alert("Erro: Tabela não encontrada!");
-    
-    const tableClone = originalTable.cloneNode(true);
-    
-    // 3. Limpeza total de botões e ícones
-    tableClone.querySelectorAll('.no-print, button, thead').forEach(el => el.remove());
-    
-    // 4. Limpar nomes (remover ✅, 👆, 👤)
-    tableClone.querySelectorAll('.user-tag').forEach(tag => {
-        const cleanName = tag.innerText.replace(/[✅👆👤]/g, '').trim();
-        tag.parentElement.innerHTML = `<span style="display:block; padding:2px;">${cleanName}</span>`;
+        // Cabeçalho do PDF para este evento
+        const section = document.createElement('div');
+        section.style.marginBottom = "30px";
+        section.innerHTML = `
+            <div style="text-align:center; font-family: Arial; margin-bottom: 20px;">
+                <h1 style="color:#d93025; margin:0;">${title}</h1>
+                <p style="color:#555; margin:5px 0 20px 0;">${dateText}</p>
+            </div>
+        `;
+
+        // Capturar a tabela deste evento
+        const originalTable = block.querySelector('.shift-table');
+        if (originalTable) {
+            const tableClone = originalTable.cloneNode(true);
+            
+            // Limpeza total de botões e ícones
+            tableClone.querySelectorAll('.no-print, button, thead').forEach(el => el.remove());
+            
+            // Limpar nomes (remover ✅, 👆, 👤)
+            tableClone.querySelectorAll('.user-tag').forEach(tag => {
+                const cleanName = tag.innerText.replace(/[✅👆👤]/g, '').trim();
+                tag.parentElement.innerHTML = `<span style="display:block; padding:2px;">${cleanName}</span>`;
+            });
+
+            // Aplicar estilo da primeira linha vermelha
+            const rows = tableClone.querySelectorAll('tr');
+            rows.forEach((row, rowIndex) => {
+                const cells = row.querySelectorAll('td');
+                cells.forEach(cell => {
+                    cell.style.border = "1px solid #000";
+                    cell.style.padding = "10px";
+                    cell.style.textAlign = "center";
+                    cell.style.fontSize = "12px";
+                    cell.style.fontFamily = "Arial";
+                    if (rowIndex === 0) {
+                        cell.style.backgroundColor = "#d93025";
+                        cell.style.color = "#ffffff";
+                        cell.style.fontWeight = "bold";
+                    } else {
+                        cell.style.backgroundColor = "transparent";
+                        cell.style.color = "#000000";
+                    }
+                });
+            });
+
+            tableClone.style.width = "100%";
+            tableClone.style.borderCollapse = "collapse";
+            section.appendChild(tableClone);
+        }
+        printArea.appendChild(section);
     });
 
-    // 5. Aplicar estilo da primeira linha vermelha
-    const rows = tableClone.querySelectorAll('tr');
-    rows.forEach((row, rowIndex) => {
-        const cells = row.querySelectorAll('td');
-        cells.forEach(cell => {
-            cell.style.border = "1px solid #000";
-            cell.style.padding = "10px";
-            cell.style.textAlign = "center";
-            cell.style.fontSize = "12px";
-            cell.style.fontFamily = "Arial";
-
-            if (rowIndex === 0) {
-                cell.style.backgroundColor = "#d93025";
-                cell.style.color = "#ffffff";
-                cell.style.fontWeight = "bold";
-            } else {
-                cell.style.backgroundColor = "transparent";
-                cell.style.color = "#000000";
-            }
-        });
-    });
-
-    tableClone.style.width = "100%";
-    tableClone.style.borderCollapse = "collapse";
-    printArea.appendChild(tableClone);
-
-    // 6. Configurações de exportação
+    // Configurações de exportação
     const opt = {
         margin: 10,
-        filename: `${title.replace(/\s+/g, '_')}.pdf`,
+        filename: `turnos.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
@@ -371,30 +504,138 @@ async function exportToPDF() {
         await html2pdf().set(opt).from(printArea).save();
     } catch (err) {
         console.error("Erro no html2pdf:", err);
-        alert("Erro ao gerar PDF. Tenta recarregar a página com Ctrl+F5.");
+        toast("Erro ao gerar PDF. Tenta recarregar a página com Ctrl+F5.", "error");
     }
 }
-        function createBlankGrid() {
-            const rows = document.getElementById('gridRows').value || 5;
-            const cols = document.getElementById('gridCols').value || 5;
-            let html = '<table id="designTable" class="shift-table" style="cursor: cell;">';
-            
-            for (let r = 0; r < rows; r++) {
-                html += '<tr>';
-                for (let c = 0; c < cols; c++) {
-                   html += `<td contenteditable="true" 
+function createBlankGrid() {
+    const rows = document.getElementById('gridRows').value || 5;
+    const cols = document.getElementById('gridCols').value || 5;
+    let html = '<table id="designTable" class="shift-table" style="table-layout: fixed; width: 100%;">';
+    
+    for (let r = 0; r < rows; r++) {
+        html += '<tr>';
+        for (let c = 0; c < cols; c++) {
+            html += `<td contenteditable="true" 
+                id="cell_${r}_${c}" 
                 data-row="${r}" data-col="${c}" data-type="label" 
-                onclick="if(event.shiftKey) mergeCell(this)"
+                onclick="if(event.shiftKey) startMerge(event, this); else if(event.ctrlKey || event.metaKey) unmerge(this);"
                 ondblclick="toggleCellMode(this)" 
                 oncontextmenu="event.preventDefault(); clearCell(this);" 
-                style="min-width: 100px; height: 50px; background: white; border: 1px solid #ccc;"></td>`;
-                }
-                html += '</tr>';
+                style="min-width: 80px; height: 40px; border: 1px solid #ccc; background: white;"></td>`;
+        }
+        html += '</tr>';
+    }
+    html += '</table>';
+    document.getElementById('gridEditorContainer').innerHTML = html;
+}
+
+        function startMerge(event, cell) {
+            // Get click position relative to the cell
+            const rect = cell.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            const w = rect.width;
+            const h = rect.height;
+
+            const r = parseInt(cell.dataset.row);
+            const c = parseInt(cell.dataset.col);
+            const rs = cell.rowSpan || 1;
+            const cs = cell.colSpan || 1;
+
+            let targetR = r;
+            let targetC = c;
+            let direction = "";
+
+            // Determine direction based on which triangle was clicked
+            // We compare the click coordinates against the diagonals of the cell
+            if (y < (h / w) * x && y < h - (h / w) * x) {
+                direction = "up";
+                targetR = r - 1;
+            } else if (y > (h / w) * x && y > h - (h / w) * x) {
+                direction = "down";
+                targetR = r + rs;
+            } else if (y > (h / w) * x && y < h - (h / w) * x) {
+                direction = "left";
+                targetC = c - 1;
+            } else {
+                direction = "right";
+                targetC = c + cs;
             }
-            html += '</table>';
-            document.getElementById('gridEditorContainer').innerHTML = html;
+
+            const target = document.getElementById(`cell_${targetR}_${targetC}`);
+            if (!target) return; // Silent fail if boundary reached
+
+            // Perform merge
+            if (direction === "up" || direction === "down") {
+                cell.rowSpan = rs + (target.rowSpan || 1);
+                if (direction === "up") {
+                    // If merging up, we actually move the current data to the target's position 
+                    // but for simplicity in this editor, we just expand the current one.
+                    // Note: Vertical merging upwards is trickier in HTML tables.
+                    toast("Tip: Mesclar 'Down' é mais estável em tabelas HTML.", "info");
+                    return;
+                }
+            } else {
+                cell.colSpan = cs + (target.colSpan || 1);
+            }
+            
+            target.remove();
         }
 
+            async function unmerge(cell) {
+            const r0 = parseInt(cell.dataset.row);
+            const c0 = parseInt(cell.dataset.col);
+            const rs = cell.rowSpan || 1;
+            const cs = cell.colSpan || 1;
+
+            // Se a célula não estiver fundida, não faz nada
+            if (rs === 1 && cs === 1) return;
+
+            if (!await confirmDialog("Desejas separar estas células e voltar ao estado original?", { icon: "↩️", okLabel: "Separar" })) return;
+
+            // Reset da célula principal
+            cell.rowSpan = 1;
+            cell.colSpan = 1;
+
+            const table = document.getElementById('designTable');
+
+            // Recriar as células em falta
+            for (let r = r0; r < r0 + rs; r++) {
+                const row = table.rows[r];
+                for (let c = c0; c < c0 + cs; c++) {
+                    // Salta a célula original
+                    if (r === r0 && c === c0) continue;
+
+                    const newCell = document.createElement('td');
+                    // Configurar a nova célula com os mesmos atributos e eventos
+                    newCell.id = `cell_${r}_${c}`;
+                    newCell.dataset.row = r;
+                    newCell.dataset.col = c;
+                    newCell.dataset.type = "label";
+                    newCell.contentEditable = "true";
+                    newCell.style.cssText = "min-width: 80px; height: 40px; border: 1px solid #ccc; background: white;";
+                    
+                    // Re-adicionar os listeners (Merge, Unmerge, Modo Vaga, Clear)
+                    newCell.onclick = (e) => { 
+                        if(e.shiftKey) startMerge(e, newCell); 
+                        else if(e.ctrlKey || e.metaKey) unmerge(newCell); 
+                    };
+                    newCell.ondblclick = () => toggleCellMode(newCell);
+                    newCell.oncontextmenu = (e) => { e.preventDefault(); clearCell(newCell); };
+
+                    // Lógica de inserção: encontrar a posição correta na linha
+                    let inserted = false;
+                    for (let i = 0; i < row.cells.length; i++) {
+                        if (parseInt(row.cells[i].dataset.col) > c) {
+                            row.insertBefore(newCell, row.cells[i]);
+                            inserted = true;
+                            break;
+                        }
+                    }
+                    if (!inserted) row.appendChild(newCell);
+                }
+            }
+    }
         function toggleCellMode(cell) {
             if (cell.dataset.type === "label") {
                 cell.dataset.type = "slot";
@@ -413,11 +654,13 @@ async function exportToPDF() {
 
         async function saveGrid() {
             const cells = Array.from(document.querySelectorAll('#designTable td')).map(td => ({
-                r: parseInt(td.dataset.row),
-                c: parseInt(td.dataset.col),
-                content: td.innerText.replace("[ VAGA ]", ""),
-                isSlot: td.dataset.type === "slot"
-            }));
+                    r: parseInt(td.dataset.row),
+                    c: parseInt(td.dataset.col),
+                    content: td.innerText.replace("[ VAGA ]", ""),
+                    isSlot: td.dataset.type === "slot",
+                    colSpan: td.colSpan || 1, // Usa os nomes corretos para o backend
+                    rowSpan: td.rowSpan || 1
+                }));
 
             const payload = {
                 eventName: document.getElementById('eventName').value,
@@ -434,12 +677,12 @@ async function exportToPDF() {
         if (res.ok) {
             localStorage.removeItem('draft_eventName');
             localStorage.removeItem('draft_eventDate');
-            alert("Grelha publicada com sucesso!");
-        location.reload();
+            toast("Grelha publicada com sucesso!", "success");
+            setTimeout(() => location.reload(), 1200);
             }
         }
-        function clearCell(cell) {
-            if (confirm("Limpar conteúdo desta célula?")) {
+        async function clearCell(cell) {
+            if (await confirmDialog("Limpar conteúdo desta célula?", { icon: "🗑️", okLabel: "Limpar" })) {
                 cell.innerHTML = "";
                 cell.dataset.type = "label";
                 cell.style.backgroundColor = "white";
@@ -448,16 +691,16 @@ async function exportToPDF() {
             }
         }
 
-        function mergeCell(cell) {
+        async function mergeCell(cell) {
             const nextCell = cell.nextElementSibling;
             if (!nextCell) return;
 
-            if (confirm("Mesclar com a célula à direita?")) {
+            if (await confirmDialog("Mesclar com a célula à direita?", { icon: "⬛", okLabel: "Mesclar" })) {
                 const currentSpan = parseInt(cell.colSpan) || 1;
                 const nextSpan = parseInt(nextCell.colSpan) || 1;
                 
                 cell.colSpan = currentSpan + nextSpan;
-                nextCell.remove(); // Remove a célula absorvida
+                nextCell.remove();
             }
         }
 

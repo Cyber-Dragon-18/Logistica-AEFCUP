@@ -50,6 +50,7 @@
         </div>
     </div>
 
+    <script src="/notify.js"></script>
     <script>
         // 1. Carregar dados do utilizador
         const user = JSON.parse(localStorage.getItem('user'));
@@ -98,15 +99,15 @@
                 
                 if (res.ok) {
                     const photoPath = await res.text();
-                    user.photo = photoPath; // Caminho retornado pelo Go: /uploads/...
+                    user.photo = photoPath;
                     localStorage.setItem('user', JSON.stringify(user));
                     renderAvatar();
-                    alert("Foto atualizada com sucesso!");
+                    toast("Foto atualizada com sucesso!", "success");
                 } else {
-                    alert("Erro ao carregar a foto.");
+                    toast("Erro ao carregar a foto.", "error");
                 }
             } catch (err) {
-                alert("Erro na ligação ao servidor.");
+                toast("Erro na ligação ao servidor.", "error");
             }
         }
 
@@ -129,7 +130,7 @@
                 user.name = body.name;
                 localStorage.setItem('user', JSON.stringify(user));
                 renderAvatar();
-                if (!selectedColor.startsWith('#')) alert("Foto removida.");
+                if (!selectedColor.startsWith('#')) toast("Foto removida.", "info");
             }
         }
 
@@ -151,10 +152,10 @@
             if (res.ok) {
                 user.name = body.name;
                 localStorage.setItem('user', JSON.stringify(user));
-                alert("Perfil atualizado!");
-                window.location.href = "/dashboard.html";
+                toast("Perfil atualizado!", "success");
+                setTimeout(() => window.location.href = "/dashboard.html", 1200);
             } else {
-                alert("Erro ao atualizar o perfil.");
+                toast("Erro ao atualizar o perfil.", "error");
             }
         }
 
