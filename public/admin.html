@@ -13,6 +13,47 @@
     <meta name="apple-mobile-web-app-title" content="Logística">
     <link rel="apple-touch-icon" href="/lib/LogoBranco.png">
 
+    <style>
+        @media (max-width: 640px) {
+            body { padding: 8px; }
+            .card { padding: 14px; }
+
+            /* Header */
+            header { flex-wrap: wrap; gap: 10px; margin-bottom: 20px !important; }
+            header h2 { font-size: 17px !important; }
+
+            /* Hide table, show cards instead */
+            .table-container table thead { display: none; }
+            .table-container table, 
+            .table-container tbody, 
+            .table-container tr { display: block; width: 100%; }
+            .table-container tr {
+                margin-bottom: 14px;
+                border: 1px solid #eee;
+                border-radius: 12px;
+                padding: 14px;
+                background: white;
+                box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            }
+            .table-container td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 6px 0;
+                border: none;
+                font-size: 13px;
+                gap: 8px;
+            }
+            .table-container td::before {
+                content: attr(data-label);
+                font-weight: 600;
+                color: #5f6368;
+                font-size: 12px;
+                flex-shrink: 0;
+            }
+            .table-container td button { font-size: 12px; padding: 8px 12px; }
+        }
+    </style>
 </head>
 <body>
     <div class="card">
@@ -57,17 +98,17 @@
                 const btnLabel = isLogistica ? 'Remover Admin' : 'Tornar Logística';
                 return `
                 <tr>
-                    <td><strong>${u.name}</strong></td>
-                    <td>${u.email}</td>
-                    <td>${u.department}</td>
-                    <td><span class="status ${isLogistica ? 'status-accepted' : 'status-pending'}">${u.role}</span></td>
-                    <td>
+                    <td data-label="Nome"><strong>${u.name}</strong></td>
+                    <td data-label="Email">${u.email}</td>
+                    <td data-label="Departamento">${u.department}</td>
+                    <td data-label="Cargo"><span class="status ${isLogistica ? 'status-accepted' : 'status-pending'}">${u.role}</span></td>
+                    <td data-label="Cargo">
                         <button onclick="changeRole(${u.id}, '${newRole}')" 
                                 style="font-size:11px; background:${btnColor}">
                             ${btnLabel}
                         </button>
                     </td>
-                    <td>
+                    <td data-label="Eliminar">
                         <button onclick="deleteUser(${u.id})" style="background:var(--danger); font-size:11px; margin-left:5px;">Eliminar</button>
                     </td>
                 </tr>`;

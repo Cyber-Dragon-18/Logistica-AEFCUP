@@ -79,55 +79,130 @@
         .attendance-content { display: none; }
         .attendance-content.active { display: block; }
 
-        @media (max-width: 768px) {
-            .table-container {
-                overflow-x: auto;
-                display: block;
+        @media (max-width: 640px) {
+            body { padding: 8px; }
+            .card { padding: 14px; border-radius: 10px; }
+
+            /* Header */
+            header { flex-wrap: wrap; gap: 10px; margin-bottom: 20px !important; }
+            header h2 { font-size: 17px !important; max-width: 100%; }
+
+            /* Dashboard menu cards — 2-col grid on mobile */
+            .mkt-container {
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+                padding: 0;
             }
-            /* Estilo de "Card" para telemóvel para não perder info */
+            .mkt-card {
+                padding: 18px 12px;
+                min-height: 130px;
+                border-radius: 14px;
+            }
+            .mkt-card > div:first-child { font-size: 28px; margin-bottom: 8px; }
+            .mkt-card h3 { font-size: 13px; }
+            .mkt-card p { font-size: 11px; margin-top: 6px; }
+            #marketingArea h2 { font-size: 18px; margin-bottom: 20px; }
+
+            /* Request form */
+            .form-grid { grid-template-columns: 1fr !important; gap: 12px !important; }
+            textarea { font-size: 15px; }
+            #btnSubmit { font-size: 16px; padding: 14px; }
+
+            /* Tables — requests history */
+            .table-container { overflow-x: auto; display: block; border-radius: 8px; border: 1px solid #eee; }
+            table { min-width: 480px; }
+            th, td { padding: 10px 8px !important; font-size: 13px; }
+
+            /* Attendance table — card layout */
             #globalAttendanceTableBody tr {
                 display: block;
-                margin-bottom: 15px;
+                margin-bottom: 12px;
                 border: 1px solid #eee;
+                border-radius: 10px;
+                padding: 10px 12px;
+                background: white;
+            }
+            #globalAttendanceTableBody tr.meeting-row {
+                border-left: 4px solid #1a73e8;
+                background: #e8f0fe;
                 border-radius: 8px;
-                padding: 10px;
             }
             #globalAttendanceTableBody td {
                 display: flex;
                 justify-content: space-between;
-                padding: 8px 5px;
+                align-items: center;
+                padding: 6px 0;
                 border: none;
+                font-size: 13px;
             }
             #globalAttendanceTableBody td::before {
                 content: attr(data-label);
-                font-weight: bold;
+                font-weight: 600;
                 color: #1a73e8;
+                font-size: 12px;
+                flex-shrink: 0;
+                margin-right: 8px;
             }
-                .mkt-container {
-        grid-template-columns: 1fr;   /* 1 card por linha */
-        gap: 18px;
-        padding: 10px;
-    }
 
-    .mkt-card {
-        padding: 25px;
-        min-height: auto;
-        border-radius: 18px;
-    }
+            /* Attendance form */
+            #coordAttendanceSection .form-grid { grid-template-columns: 1fr !important; }
+            #attendanceTableBody td { padding: 8px 4px !important; font-size: 13px; }
+            #attendanceTableBody select,
+            #attendanceTableBody input { font-size: 14px; padding: 8px; }
 
-    .mkt-card h3 {
-        font-size: 16px;
-    }
+            /* Modals */
+            .modal-content { margin: 0 !important; position: fixed; bottom: 0; left: 0; right: 0; border-radius: 20px 20px 0 0 !important; max-width: 100% !important; padding: 24px 20px !important; }
+            #justificationModal .modal-content { position: fixed; bottom: 0; left: 0; right: 0; margin: 0; border-radius: 20px 20px 0 0; padding: 24px 20px; }
+            .modal-buttons { flex-direction: column-reverse; }
+            .modal-buttons button { width: 100%; padding: 14px; font-size: 15px; }
 
-    .mkt-card p {
-        font-size: 12px;
-    }
+            /* Tabs */
+            .tabs-container { overflow-x: auto; gap: 0; border-bottom: 2px solid #eee; }
+            .tab-btn { padding: 10px 14px; font-size: 13px; white-space: nowrap; }
 
-    #marketingArea h2 {
-        font-size: 20px;
-        margin-bottom: 25px;
-    }
-        }        
+            /* Absence cards */
+            .attendance-card { flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px; }
+            .attendance-card button { width: 100%; padding: 12px; font-size: 14px; }
+
+            /* Requests table — card layout */
+            #reqTable tr {
+                display: block;
+                margin-bottom: 12px;
+                border: 1px solid #eee;
+                border-radius: 10px;
+                padding: 10px 12px;
+                background: white;
+                box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            }
+            #reqTable td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 6px 0;
+                border: none;
+                font-size: 13px;
+            }
+            #reqTable td::before {
+                content: attr(data-label);
+                font-weight: 600;
+                color: #1a73e8;
+                font-size: 12px;
+                flex-shrink: 0;
+                margin-right: 8px;
+            }
+            #reqTable td div { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+            #reqTable .action-btn { padding: 8px 12px; font-size: 12px; }
+
+            /* Voltar buttons in sub-sections */
+            #coordArea > div:first-child,
+            #attendanceView > div:first-child { flex-wrap: wrap; gap: 8px; }
+            #coordArea > div:first-child button,
+            #attendanceView > div:first-child button { font-size: 13px; padding: 8px 14px; }
+
+            /* Stats cards */
+            .stats-card { flex-direction: row; align-items: center; gap: 10px; }
+        }
+        
         .action-btn { padding: 8px 14px; border-radius: 8px; border: none; color: white; cursor: pointer; font-size: 11px; font-weight: 700; transition: all 0.2s ease; }
         .btn-confirm { background: #1a73e8; color: white; flex: 2; }
         .btn-cancel { background: #f1f3f4; color: #5f6368; flex: 1; }

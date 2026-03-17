@@ -92,6 +92,48 @@
             align-items: center; justify-content: center;
             font-size: 14px; line-height: 1; z-index: 10;
         }
+
+        /* ══ MOBILE ══ */
+        @media (max-width: 640px) {
+            body { padding: 8px; }
+            .card { padding: 14px; }
+
+            /* Header */
+            header { flex-wrap: wrap; gap: 10px; margin-bottom: 20px !important; }
+            header > div:first-child { flex-wrap: wrap; gap: 10px; }
+
+            /* Gallery grid — 2 cols on mobile */
+            #adminGalleryGrid {
+                grid-template-columns: 1fr 1fr !important;
+                gap: 12px !important;
+            }
+            #adminGalleryGrid .card { padding: 10px !important; }
+            #adminGalleryGrid img { height: 100px !important; }
+            #adminGalleryGrid h4 { font-size: 13px; margin: 6px 0 2px; }
+            #adminGalleryGrid small { font-size: 11px; }
+            #adminGalleryGrid > .card > div:last-child { flex-direction: column; }
+            #adminGalleryGrid > .card > div:last-child button { width: 100%; padding: 8px; font-size: 12px; }
+
+            /* Edit modal — full screen bottom sheet */
+            #editModal .modal-content {
+                margin: 0 !important;
+                position: fixed !important;
+                bottom: 0; left: 0; right: 0;
+                border-radius: 20px 20px 0 0 !important;
+                max-width: 100% !important;
+                width: 100% !important;
+                max-height: 90vh;
+                overflow-y: auto;
+                padding: 20px 16px !important;
+            }
+            #editModal .modal-content > div[style*="grid"] {
+                grid-template-columns: 1fr !important;
+            }
+            .photo-edit-grid {
+                grid-template-columns: repeat(3, 1fr) !important;
+                max-height: 250px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -120,7 +162,7 @@
                 <h3 style="margin:0;">Álbuns Ativos</h3>
                 <button onclick="window.location.href='/upload-galeria.html'">+ Novo Álbum</button>
             </div>
-            <div id="adminGalleryGrid" class="form-grid"></div>
+            <div id="adminGalleryGrid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px;"></div>
         </section>
     </div>
 
