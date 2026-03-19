@@ -492,10 +492,26 @@ async function exportToPDF() {
             // Limpeza total de botões e ícones
             tableClone.querySelectorAll('.no-print, button, thead').forEach(el => el.remove());
             
-            // Limpar nomes (remover ✅, 👆, 👤)
-            tableClone.querySelectorAll('.user-tag').forEach(tag => {
-                const cleanName = tag.innerText.replace(/[✅👆👤]/g, '').trim();
-                tag.parentElement.innerHTML = `<span style="display:block; padding:2px;">${cleanName}</span>`;
+            // FIX 1: Mostrar apenas os nomes selecionados (selected-user) e remover os não selecionados
+            tableClone.querySelectorAll('td').forEach(cell => {
+                const allTags = cell.querySelectorAll('.user-tag');
+                const selectedTags = cell.querySelectorAll('.user-tag.selected-user');
+                if (allTags.length > 0) {
+                    // Substituir todo o conteúdo da célula apenas com os selecionados
+                    const namesHTML = Array.from(selectedTags).map(tag => {
+                        const cleanName = tag.innerText.replace(/[✅👆👤]/g, '').trim();
+                        return `<span style="display:block; padding:2px;">${cleanName}</span>`;
+                    }).join('');
+                    // Remover as divs de wrapping dos user-tags, manter apenas os nomes limpos
+                    const wrappers = cell.querySelectorAll('div');
+                    wrappers.forEach(d => d.remove());
+                    cell.innerHTML = namesHTML;
+                }
+            });
+
+            // FIX 2: Remover a classe grid-cell-slot para eliminar a borda azul !important
+            tableClone.querySelectorAll('.grid-cell-slot').forEach(cell => {
+                cell.classList.remove('grid-cell-slot');
             });
 
             // Aplicar estilo da primeira linha vermelha
@@ -503,6 +519,7 @@ async function exportToPDF() {
             rows.forEach((row, rowIndex) => {
                 const cells = row.querySelectorAll('td');
                 cells.forEach(cell => {
+                    cell.style.cssText = ""; // Limpar inline styles anteriores
                     cell.style.border = "1px solid #000";
                     cell.style.padding = "10px";
                     cell.style.textAlign = "center";
@@ -513,7 +530,7 @@ async function exportToPDF() {
                         cell.style.color = "#ffffff";
                         cell.style.fontWeight = "bold";
                     } else {
-                        cell.style.backgroundColor = "transparent";
+                        cell.style.backgroundColor = "white";
                         cell.style.color = "#000000";
                     }
                 });

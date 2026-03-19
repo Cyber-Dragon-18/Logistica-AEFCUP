@@ -197,12 +197,14 @@ func sendEmailNotification(req Request) {
 	from := os.Getenv("EMAIL_USER")
 	pass := os.Getenv("EMAIL_PASS")
 	if from == "" || pass == "" {
+		log.Println("[EMAIL] EMAIL_USER ou EMAIL_PASS nao definidos - email nao enviado.")
 		return
 	}
 
-	// Procurar todos os emails da equipa de Logística
-	rows, err := db.Query("SELECT email FROM users WHERE role = 'LOGISTICA'")
+	// FIX: Query case-insensitive para apanhar 'LOGISTICA', 'Logistica', etc.
+	rows, err := db.Query("SELECT email FROM users WHERE UPPER(role) = 'LOGISTICA'")
 	if err != nil {
+		log.Printf("[EMAIL] Erro ao procurar destinatarios: %v", err)
 		return
 	}
 	defer rows.Close()
@@ -210,21 +212,36 @@ func sendEmailNotification(req Request) {
 	var recipients []string
 	for rows.Next() {
 		var email string
-		rows.Scan(&email)
-		recipients = append(recipients, email)
+		if err := rows.Scan(&email); err == nil && email != "" {
+			recipients = append(recipients, email)
+		}
 	}
 
 	if len(recipients) == 0 {
+		log.Println("[EMAIL] Nenhum utilizador com role LOGISTICA encontrado.")
 		return
 	}
 
-	subject := "Subject: [AEF CUP] Novo Pedido - " + req.Title + "\n"
-	body := fmt.Sprintf("Olá Logística,\n\nUm novo pedido foi criado por %s:\n\n"+
-		"Evento: %s\nServiço: %s\nDescrição: %s\n\nAcedam ao Dashboard para gerir: https://logistica-aefcup.onrender.com/.",
+	// FIX: Formato MIME correto com \r\n obrigatorio para o Gmail aceitar
+	subject := "[AEF CUP] Novo Pedido - " + req.Title
+	body := fmt.Sprintf("Ola Logistica,\r\n\r\nUm novo pedido foi criado por %s:\r\n\r\n"+
+		"Evento: %s\r\nServico: %s\r\nDescricao: %s\r\n\r\nAcedam ao Dashboard para gerir: https://logistica-aefcup.onrender.com/",
 		req.Department, req.EventName, req.ServiceType, req.Description)
 
+	msg := []byte("From: " + from + "\r\n" +
+		"To: " + recipients[0] + "\r\n" +
+		"Subject: " + subject + "\r\n" +
+		"MIME-Version: 1.0\r\n" +
+		"Content-Type: text/plain; charset=UTF-8\r\n" +
+		"\r\n" +
+		body)
+
 	auth := smtp.PlainAuth("", from, pass, "smtp.gmail.com")
-	smtp.SendMail("smtp.gmail.com:587", auth, from, recipients, []byte(subject+"\n"+body))
+	if err := smtp.SendMail("smtp.gmail.com:587", auth, from, recipients, msg); err != nil {
+		log.Printf("[EMAIL] Erro ao enviar email: %v", err)
+		return
+	}
+	log.Printf("[EMAIL] Email enviado com sucesso para %d destinatario(s).", len(recipients))
 }
 
 func handleRequests(w http.ResponseWriter, r *http.Request) {
