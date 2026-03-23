@@ -442,17 +442,27 @@ async function selectUser(slotId, userName) {
 
     // 1. Encontrar a tag visualmente no ecrã
     const tags = document.querySelectorAll('.user-tag');
-    let targetTag = Array.from(tags).find(t => t.innerText.includes(userName) && t.getAttribute('onclick').includes(slotId));
+    let targetTag = Array.from(tags).find(t => t.innerText.includes(userName) && t.getAttribute('onclick') && t.getAttribute('onclick').includes(slotId));
 
     if (targetTag) {
         // 2. Atualização Otimista: Inverter a classe e o ícone localmente
         const isCurrentlySelected = targetTag.classList.contains('selected-user');
         targetTag.classList.toggle('selected-user');
-        
-        // Atualiza o ícone (✅ para confirmado, 👆 para em espera)
-        targetTag.innerHTML = isCurrentlySelected 
-            ? `${userName} 👆` 
-            : `${userName} ✅`;
+        targetTag.innerHTML = isCurrentlySelected ? `${userName} 👆` : `${userName} ✅`;
+
+        // 3. Atualizar o badge de resumo do slot em tempo real
+        const slotList = document.getElementById(`slot_${slotId}_list`);
+        if (slotList) {
+            const allTags = slotList.querySelectorAll('.user-tag');
+            const newSelectedCount = Array.from(allTags).filter(t => t.classList.contains('selected-user')).length;
+            const totalCount = allTags.length;
+            const summaryEl = document.querySelector(`[onclick="toggleSlotList('slot_${slotId}')"] span`);
+            if (summaryEl) {
+                const color = newSelectedCount > 0 ? '#188038' : '#1a73e8';
+                summaryEl.style.color = color;
+                summaryEl.innerHTML = `👥 ${newSelectedCount}✅ / ${totalCount} inscritos`;
+            }
+        }
     }
 
     try {
@@ -463,7 +473,6 @@ async function selectUser(slotId, userName) {
         });
 
         if (!res.ok) throw new Error();
-        // Não precisamos de reload imediato, o estado visual já está correto
     } catch (e) {
         toast("Erro ao salvar seleção. A página vai recarregar.", "error");
         loadShifts();
