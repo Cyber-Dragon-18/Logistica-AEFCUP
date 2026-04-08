@@ -186,7 +186,7 @@ async function loadShifts() {
                     ? unavailableUsers.map(u => `
                         <span class="user-tag" style="background: #fee; border-color: #f55; color: #d93025; display: flex; align-items: center; gap: 5px;">
                             ${u.name} 
-                            <button onclick="adminClearUser(${unavailabilitySlot ? unavailabilitySlot.id : 0}, '${u.name}')" style="background:none; border:none; color:red; cursor:pointer;">&times;</button>
+                            <button onclick="adminClearUser(${unavailabilitySlot ? unavailabilitySlot.id : 0}, '${esc(u.name)}')" style="background:none; border:none; color:red; cursor:pointer;">&times;</button>
                         </span>`).join('')
                     : '<small>Ninguém marcou indisponibilidade ainda.</small>';
 
@@ -266,39 +266,85 @@ async function loadShifts() {
 }
 
 // Função auxiliar para desenhar o conteúdo das vagas (Inscritos + Botão)
+function esc(str) { return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
 function renderSlot(s, eventId) {
     const users = s.users || [];
     const confirmed = users.filter(u => u.selected);
     const isEnrolled = users.some(u => u.name === user.name);
+    const slotUid = `slot_${s.id}`;
 
-    // Renderização dos nomes
-    const displayNames = isAdmin 
-    ? users.map(u => `
-        <div style="display: flex; align-items: center; justify-content: center; gap: 5px; margin-bottom: 2px;">
-            <div class="user-tag ${u.selected ? 'selected-user' : ''}" 
-                 onclick="selectUser(${s.id}, '${u.name}')" style="cursor:pointer; margin:0;">
-                ${u.name} ${u.selected ? '✅' : '👆'}
-            </div>
-            <button onclick="adminClearUser(${s.id}, '${u.name}')" 
-                    style="background:none; border:none; color:#d93025; cursor:pointer; font-weight:bold; padding:0 5px;">
-                &times;
-            </button>
-        </div>`).join('')
-    : (confirmed.length > 0 
-        ? confirmed.map(u => `<div class="user-tag selected-user">👤 ${u.name}</div>`).join('') 
-        : "");
+    // ── Admin view: collapsible full list ──
+    let displayNames = '';
+    if (isAdmin) {
+        const total = users.length;
+        const selectedCount = confirmed.length;
+        const listHTML = users.map(u => `
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:4px;padding:2px 0;border-bottom:1px solid #eee;">
+                <div class="user-tag ${u.selected ? 'selected-user' : ''}"
+                     onclick="selectUser(${s.id}, '${esc(u.name)}')" style="cursor:pointer;margin:0;flex:1;text-align:left;">
+                    ${u.name} ${u.selected ? '✅' : '👆'}
+                </div>
+                <button onclick="adminClearUser(${s.id}, '${esc(u.name)}')"
+                        style="background:none;border:none;color:#d93025;cursor:pointer;font-weight:bold;padding:0 4px;flex-shrink:0;">
+                    &times;
+                </button>
+            </div>`).join('');
+
+        const summaryColor = selectedCount > 0 ? '#188038' : '#1a73e8';
+        const summaryText = total === 0
+            ? '<span style="color:#9aa0a6;font-size:11px;">Sem inscrições</span>'
+            : `<span style="font-size:11px;font-weight:bold;color:${summaryColor};">👥 ${selectedCount}✅ / ${total} inscritos</span>`;
+
+        displayNames = total === 0 ? summaryText : `
+            <div>
+                <div onclick="toggleSlotList('${slotUid}')" style="cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:center;gap:5px;">
+                    ${summaryText}
+                    <span id="${slotUid}_arrow" style="font-size:10px;color:#5f6368;">▼</span>
+                </div>
+                <div id="${slotUid}_list" style="display:none;margin-top:6px;max-height:200px;overflow-y:auto;text-align:left;">
+                    ${listHTML}
+                </div>
+            </div>`;
+
+    // ── Regular user view: show all enrolled, compact ──
+    } else {
+        if (users.length > 0) {
+            const myTag = users.find(u => u.name === user.name);
+            const others = users.filter(u => u.name !== user.name);
+            const meHTML = myTag
+                ? `<div class="user-tag ${myTag.selected ? 'selected-user' : ''}" style="font-size:11px;">👤 ${myTag.name}</div>`
+                : '';
+            const othersHTML = others.length > 0
+                ? `<div onclick="toggleSlotList('${slotUid}')" style="cursor:pointer;">
+                       <span style="font-size:11px;color:#5f6368;">+${others.length} pessoa${others.length > 1 ? 's' : ''} <span id="${slotUid}_arrow">▼</span></span>
+                       <div id="${slotUid}_list" style="display:none;margin-top:4px;">
+                           ${others.map(u => `<div class="user-tag ${u.selected ? 'selected-user' : ''}" style="font-size:11px;">👤 ${u.name}</div>`).join('')}
+                       </div>
+                   </div>`
+                : '';
+            displayNames = meHTML + othersHTML;
+        }
+    }
 
     const statusAction = isEnrolled 
         ? `<span style="font-size:10px; padding:2px 8px; background:#e8f0fe; color:#1a73e8; border:1px solid #1a73e8; border-radius:4px; font-weight:bold;">✅ Inscrito</span>`
         : `<button onclick="book(${s.id}, ${eventId})" style="font-size:10px; padding:2px 5px; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer;">Inscrever</button>`;
 
     return `
-        <div style="min-height:30px;">${displayNames}</div>
+        <div style="min-height:24px;">${displayNames}</div>
         <div class="no-print" style="margin-top:5px;">
             ${statusAction}
         </div>`;
 }
 
+function toggleSlotList(uid) {
+    const list = document.getElementById(uid + '_list');
+    const arrow = document.getElementById(uid + '_arrow');
+    if (!list) return;
+    const isOpen = list.style.display !== 'none';
+    list.style.display = isOpen ? 'none' : 'block';
+    if (arrow) arrow.textContent = isOpen ? '▼' : '▲';
+}
 async function setUnavailability(eventId) {
     if (!user || !user.name) {
         toast("Utilizador não identificado", "error");
@@ -392,14 +438,26 @@ async function selectUser(slotId, userName) {
     if (!isAdmin) return;
 
     const tags = document.querySelectorAll('.user-tag');
-    let targetTag = Array.from(tags).find(t => t.innerText.includes(userName) && t.getAttribute('onclick').includes(slotId));
+    let targetTag = Array.from(tags).find(t => t.innerText.includes(userName) && t.getAttribute('onclick') && t.getAttribute('onclick').includes(slotId));
 
     if (targetTag) {
         const isCurrentlySelected = targetTag.classList.contains('selected-user');
         targetTag.classList.toggle('selected-user');
-        targetTag.innerHTML = isCurrentlySelected 
-            ? `${userName} 👆` 
-            : `${userName} ✅`;
+        targetTag.innerHTML = isCurrentlySelected ? `${userName} 👆` : `${userName} ✅`;
+
+        // 3. Atualizar o badge de resumo do slot em tempo real
+        const slotList = document.getElementById(`slot_${slotId}_list`);
+        if (slotList) {
+            const allTags = slotList.querySelectorAll('.user-tag');
+            const newSelectedCount = Array.from(allTags).filter(t => t.classList.contains('selected-user')).length;
+            const totalCount = allTags.length;
+            const summaryEl = document.querySelector(`[onclick="toggleSlotList('slot_${slotId}')"] span`);
+            if (summaryEl) {
+                const color = newSelectedCount > 0 ? '#188038' : '#1a73e8';
+                summaryEl.style.color = color;
+                summaryEl.innerHTML = `👥 ${newSelectedCount}✅ / ${totalCount} inscritos`;
+            }
+        }
     }
 
     try {

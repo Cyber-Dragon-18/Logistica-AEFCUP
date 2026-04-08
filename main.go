@@ -563,6 +563,17 @@ func handleListShifts(w http.ResponseWriter, r *http.Request) {
 	db.Exec(`ALTER TABLE shift_slots ADD COLUMN IF NOT EXISTS event_id INTEGER DEFAULT 0`)
 	db.Exec(`ALTER TABLE shift_enrollments ADD COLUMN IF NOT EXISTS event_id INTEGER DEFAULT 0`)
 
+	// Limpar slots duplicados de indisponibilidade — manter apenas o de menor ID por evento
+	db.Exec(`
+		DELETE FROM shift_slots
+		WHERE content = 'SISTEMA_INDISPONIBILIDADE'
+		AND id NOT IN (
+			SELECT MIN(id) FROM shift_slots
+			WHERE content = 'SISTEMA_INDISPONIBILIDADE'
+			GROUP BY event_id
+		)
+	`)
+
 	type slotData struct {
 		ID      int                      `json:"id"`
 		EventID int                      `json:"eventId"`
@@ -677,23 +688,33 @@ func handleBookShift(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Se ID < 0, é um pedido de indisponibilidade — garantir que o slot existe e resolver o ID real
+	// Se ID < 0, é um pedido de indisponibilidade — reutilizar o slot existente (MIN id) ou criar um novo
 	if data.ID < 0 {
-		db.Exec(`
-			INSERT INTO shift_slots (event_id, row_idx, col_idx, content, is_slot, event_name, event_date, col_span, row_span)
-			VALUES ($1, -1, -1, 'SISTEMA_INDISPONIBILIDADE', true, '', '', 1, 1)
-			ON CONFLICT DO NOTHING`, data.EventID)
 		var resolvedID int
-		if err := db.QueryRow(`SELECT id FROM shift_slots WHERE event_id = $1 AND content = 'SISTEMA_INDISPONIBILIDADE'`, data.EventID).Scan(&resolvedID); err != nil {
-			http.Error(w, "Erro ao obter slot de indisponibilidade: "+err.Error(), 500)
-			return
+		lookupErr := db.QueryRow(
+			`SELECT COALESCE(MIN(id), 0) FROM shift_slots WHERE event_id = $1 AND content = 'SISTEMA_INDISPONIBILIDADE'`,
+			data.EventID,
+		).Scan(&resolvedID)
+		if lookupErr != nil || resolvedID == 0 {
+			createErr := db.QueryRow(
+				`INSERT INTO shift_slots (event_id, row_idx, col_idx, content, is_slot, event_name, event_date, col_span, row_span)
+				VALUES ($1, -1, -1, 'SISTEMA_INDISPONIBILIDADE', true, '', '', 1, 1) RETURNING id`,
+				data.EventID,
+			).Scan(&resolvedID)
+			if createErr != nil {
+				http.Error(w, "Erro ao criar slot de indisponibilidade: "+createErr.Error(), 500)
+				return
+			}
 		}
 		data.ID = resolvedID
 	}
 
 	// Verificar se utilizador já marcou indisponibilidade para este evento
 	var unavSlotID int
-	unavErr := db.QueryRow(`SELECT id FROM shift_slots WHERE event_id = $1 AND content = 'SISTEMA_INDISPONIBILIDADE'`, data.EventID).Scan(&unavSlotID)
+	unavErr := db.QueryRow(
+		`SELECT COALESCE(MIN(id), 0) FROM shift_slots WHERE event_id = $1 AND content = 'SISTEMA_INDISPONIBILIDADE'`,
+		data.EventID,
+	).Scan(&unavSlotID)
 	if unavErr == nil {
 		var count int
 		db.QueryRow(`SELECT COUNT(*) FROM shift_enrollments WHERE slot_id = $1 AND user_name = $2`, unavSlotID, data.UserName).Scan(&count)
