@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestão de Turnos - AEFCUP</title>
     <link rel="stylesheet" href="styles.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         /* ── Base ── */
         .shift-table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
@@ -299,6 +298,7 @@ function renderSlot(s, eventId) {
             ${statusAction}
         </div>`;
 }
+
 async function setUnavailability(eventId) {
     if (!user || !user.name) {
         toast("Utilizador não identificado", "error");
@@ -356,14 +356,12 @@ async function adminClearUser(slotId, userName) {
 }
 
 async function book(id, eventId) {
-    // 1. Localizar o botão usando o event global ou passado
     const btn = window.event ? window.event.target : null;
     if (!btn) return;
 
     const cell = btn.closest('td');
     const originalContent = cell.innerHTML;
 
-    // 2. Atualização Otimista
     const userTag = `<div class="user-tag">👤 ${user.name} (a guardar...)</div>`;
     btn.style.display = 'none'; 
     cell.insertAdjacentHTML('afterbegin', userTag);
@@ -393,16 +391,12 @@ async function book(id, eventId) {
 async function selectUser(slotId, userName) {
     if (!isAdmin) return;
 
-    // 1. Encontrar a tag visualmente no ecrã
     const tags = document.querySelectorAll('.user-tag');
     let targetTag = Array.from(tags).find(t => t.innerText.includes(userName) && t.getAttribute('onclick').includes(slotId));
 
     if (targetTag) {
-        // 2. Atualização Otimista: Inverter a classe e o ícone localmente
         const isCurrentlySelected = targetTag.classList.contains('selected-user');
         targetTag.classList.toggle('selected-user');
-        
-        // Atualiza o ícone (✅ para confirmado, 👆 para em espera)
         targetTag.innerHTML = isCurrentlySelected 
             ? `${userName} 👆` 
             : `${userName} ✅`;
@@ -416,7 +410,6 @@ async function selectUser(slotId, userName) {
         });
 
         if (!res.ok) throw new Error();
-        // Não precisamos de reload imediato, o estado visual já está correto
     } catch (e) {
         toast("Erro ao salvar seleção. A página vai recarregar.", "error");
         loadShifts();
@@ -459,107 +452,155 @@ async function selectUser(slotId, userName) {
         }
 
 async function exportToPDF() {
-    // TESTE DE CLICK: Se isto não aparecer, o problema é a cache do browser
-    console.log("Botão clicado!"); 
+    console.log("Botão clicado!");
 
-    // 1. Criar área de impressão isolada para evitar conflitos de CSS
-    const printArea = document.createElement('div');
-    printArea.style.padding = "20px";
-    printArea.style.background = "white";
+    let allSectionsHTML = '';
 
-    // Iterar sobre todos os blocos de eventos
     document.querySelectorAll('.event-block').forEach(block => {
         const titleEl = block.querySelector('h1');
         const dateEl = block.querySelector('p');
         const title = titleEl ? titleEl.innerText : '';
         const dateText = dateEl ? dateEl.innerText : '';
 
-        // Cabeçalho do PDF para este evento
-        const section = document.createElement('div');
-        section.style.marginBottom = "30px";
-        section.innerHTML = `
-            <div style="text-align:center; font-family: Arial; margin-bottom: 20px;">
-                <h1 style="color:#d93025; margin:0;">${title}</h1>
-                <p style="color:#555; margin:5px 0 20px 0;">${dateText}</p>
-            </div>
-        `;
-
-        // Capturar a tabela deste evento
         const originalTable = block.querySelector('.shift-table');
-        if (originalTable) {
-            const tableClone = originalTable.cloneNode(true);
-            
-            // Limpeza total de botões e ícones
-            tableClone.querySelectorAll('.no-print, button, thead').forEach(el => el.remove());
-            
-            // FIX 1: Mostrar apenas os nomes selecionados (selected-user) e remover os não selecionados
-            tableClone.querySelectorAll('td').forEach(cell => {
-                const allTags = cell.querySelectorAll('.user-tag');
-                const selectedTags = cell.querySelectorAll('.user-tag.selected-user');
-                if (allTags.length > 0) {
-                    // Substituir todo o conteúdo da célula apenas com os selecionados
-                    const namesHTML = Array.from(selectedTags).map(tag => {
-                        const cleanName = tag.innerText.replace(/[✅👆👤]/g, '').trim();
-                        return `<span style="display:block; padding:2px;">${cleanName}</span>`;
-                    }).join('');
-                    // Remover as divs de wrapping dos user-tags, manter apenas os nomes limpos
-                    const wrappers = cell.querySelectorAll('div');
-                    wrappers.forEach(d => d.remove());
-                    cell.innerHTML = namesHTML;
+        if (!originalTable) return;
+
+        const tableClone = originalTable.cloneNode(true);
+
+        // Remove buttons and no-print elements
+        tableClone.querySelectorAll('.no-print, button').forEach(el => el.remove());
+
+        // Show only selected users, clean up emoji
+        tableClone.querySelectorAll('td').forEach(cell => {
+            const allTags = cell.querySelectorAll('.user-tag');
+            const selectedTags = cell.querySelectorAll('.user-tag.selected-user');
+            if (allTags.length > 0) {
+                const namesHTML = Array.from(selectedTags).map(tag => {
+                    const cleanName = tag.innerText.replace(/[✅👆👤×]/g, '').trim();
+                    return `<span style="display:block;">${cleanName}</span>`;
+                }).join('') || '<span style="color:#aaa; font-size:9px;">—</span>';
+                cell.querySelectorAll('div').forEach(d => d.remove());
+                cell.innerHTML = namesHTML;
+            }
+        });
+
+        // Remove blue slot border class
+        tableClone.querySelectorAll('.grid-cell-slot').forEach(cell => {
+            cell.classList.remove('grid-cell-slot');
+        });
+
+        // Apply clean inline styles to every cell
+        tableClone.querySelectorAll('tr').forEach((row, rowIndex) => {
+            row.querySelectorAll('td').forEach(cell => {
+                const isHeader = cell.classList.contains('grid-cell-header');
+                cell.removeAttribute('class');
+                cell.removeAttribute('style');
+                cell.style.border = "1px solid #bbb";
+                cell.style.padding = "4px 3px";
+                cell.style.textAlign = "center";
+                cell.style.verticalAlign = "middle";
+                cell.style.fontSize = "9px";
+                cell.style.fontFamily = "Arial, sans-serif";
+                cell.style.wordBreak = "break-word";
+                cell.style.lineHeight = "1.3";
+                if (isHeader) {
+                    cell.style.backgroundColor = "#d93025";
+                    cell.style.color = "#ffffff";
+                    cell.style.fontWeight = "bold";
+                } else {
+                    cell.style.backgroundColor = "#ffffff";
+                    cell.style.color = "#000000";
                 }
             });
+        });
 
-            // FIX 2: Remover a classe grid-cell-slot para eliminar a borda azul !important
-            tableClone.querySelectorAll('.grid-cell-slot').forEach(cell => {
-                cell.classList.remove('grid-cell-slot');
-            });
+        tableClone.removeAttribute('class');
+        tableClone.style.width = "100%";
+        tableClone.style.borderCollapse = "collapse";
+        tableClone.style.tableLayout = "auto";
 
-            // Aplicar estilo da primeira linha vermelha
-            const rows = tableClone.querySelectorAll('tr');
-            rows.forEach((row, rowIndex) => {
-                const cells = row.querySelectorAll('td');
-                cells.forEach(cell => {
-                    cell.style.cssText = ""; // Limpar inline styles anteriores
-                    cell.style.border = "1px solid #000";
-                    cell.style.padding = "10px";
-                    cell.style.textAlign = "center";
-                    cell.style.fontSize = "12px";
-                    cell.style.fontFamily = "Arial";
-                    if (rowIndex === 0) {
-                        cell.style.backgroundColor = "#d93025";
-                        cell.style.color = "#ffffff";
-                        cell.style.fontWeight = "bold";
-                    } else {
-                        cell.style.backgroundColor = "white";
-                        cell.style.color = "#000000";
-                    }
-                });
-            });
-
-            tableClone.style.width = "100%";
-            tableClone.style.borderCollapse = "collapse";
-            section.appendChild(tableClone);
-        }
-        printArea.appendChild(section);
+        allSectionsHTML += `
+            <div class="event-section">
+                <div style="text-align:center; margin-bottom:12px;">
+                    <h1 style="color:#d93025; margin:0; font-size:16px; font-family:Arial;">${title}</h1>
+                    <p style="color:#555; margin:3px 0 0 0; font-size:10px; font-family:Arial;">${dateText}</p>
+                </div>
+                ${tableClone.outerHTML}
+            </div>
+        `;
     });
 
-    // Configurações de exportação
-    const opt = {
-        margin: 10,
-        filename: `turnos.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
-    };
+    const printWindow = window.open('', '_blank', 'width=1200,height=800');
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Turnos</title>
+            <style>
+                @page {
+                    size: A4 landscape;
+                    margin: 10mm;
+                    marks: none;
+                }
+                @media print {
+                    html, body { margin: 0 !important; padding: 0 !important; }
+                    /* Hide browser print headers/footers — works in Firefox */
+                    /* Chrome/Edge: user must disable in print dialog */
+                }
+                * { box-sizing: border-box; }
+                body { margin: 0; padding: 0; background: white; font-family: Arial, sans-serif; }
+                .event-section { margin-bottom: 20px; page-break-after: always; }
+                .event-section:last-child { page-break-after: avoid; }
+                table { width: 100%; border-collapse: collapse; table-layout: auto; }
+                td { border: 1px solid #bbb; padding: 4px 3px; text-align: center;
+                     vertical-align: middle; font-size: 9px; font-family: Arial, sans-serif;
+                     word-break: break-word; line-height: 1.3; }
 
-    // Tentar gerar o PDF
-    try {
-        await html2pdf().set(opt).from(printArea).save();
-    } catch (err) {
-        console.error("Erro no html2pdf:", err);
-        toast("Erro ao gerar PDF. Tenta recarregar a página com Ctrl+F5.", "error");
-    }
+                /* Tip banner — only visible on screen, hidden when printing */
+                #print-tip {
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 10px;
+                    background: #fff8e1;
+                    border: 1px solid #ffc107;
+                    border-left: 4px solid #ffc107;
+                    border-radius: 6px;
+                    padding: 10px 14px;
+                    margin-bottom: 16px;
+                    font-size: 12px;
+                    color: #555;
+                    font-family: Arial;
+                }
+                #print-tip .tip-icon { font-size: 18px; flex-shrink: 0; }
+                #print-tip p { margin: 0; line-height: 1.5; }
+                #print-tip b { color: #333; }
+                #print-tip code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+                @media print { #print-tip { display: none !important; } }
+            </style>
+        </head>
+        <body>
+            <div id="print-tip">
+                <span class="tip-icon">💡</span>
+                <p>
+                    Para <b>remover o cabeçalho e rodapé</b> do browser no PDF final:<br>
+                    <b>Chrome / Edge:</b> No diálogo de impressão → <code>Mais definições</code> → desativa <b>"Cabeçalhos e rodapés"</b><br>
+                    <b>Firefox:</b> No diálogo de impressão → <code>Opções</code> → desmarca <b>Cabeçalhos e Rodapés</b>
+                </p>
+            </div>
+            ${allSectionsHTML}
+            <script>
+                window.onload = function() {
+                    window.print();
+                    window.onafterprint = function() { window.close(); };
+                };
+            <\/script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
 }
+
 function createBlankGrid() {
     const rows = document.getElementById('gridRows').value || 5;
     const cols = document.getElementById('gridCols').value || 5;
@@ -583,7 +624,6 @@ class="grid-cell design-cell"></td>`;
 }
 
         function startMerge(event, cell) {
-            // Get click position relative to the cell
             const rect = cell.getBoundingClientRect();
             const x = event.clientX - rect.left;
             const y = event.clientY - rect.top;
@@ -599,8 +639,6 @@ class="grid-cell design-cell"></td>`;
             let targetC = c;
             let direction = "";
 
-            // Determine direction based on which triangle was clicked
-            // We compare the click coordinates against the diagonals of the cell
             if (y < (h / w) * x && y < h - (h / w) * x) {
                 direction = "up";
                 targetR = r - 1;
@@ -616,15 +654,11 @@ class="grid-cell design-cell"></td>`;
             }
 
             const target = document.getElementById(`cell_${targetR}_${targetC}`);
-            if (!target) return; // Silent fail if boundary reached
+            if (!target) return;
 
-            // Perform merge
             if (direction === "up" || direction === "down") {
                 cell.rowSpan = rs + (target.rowSpan || 1);
                 if (direction === "up") {
-                    // If merging up, we actually move the current data to the target's position 
-                    // but for simplicity in this editor, we just expand the current one.
-                    // Note: Vertical merging upwards is trickier in HTML tables.
                     toast("Tip: Mesclar 'Down' é mais estável em tabelas HTML.", "info");
                     return;
                 }
@@ -641,26 +675,21 @@ class="grid-cell design-cell"></td>`;
             const rs = cell.rowSpan || 1;
             const cs = cell.colSpan || 1;
 
-            // Se a célula não estiver fundida, não faz nada
             if (rs === 1 && cs === 1) return;
 
             if (!await confirmDialog("Desejas separar estas células e voltar ao estado original?", { icon: "↩️", okLabel: "Separar" })) return;
 
-            // Reset da célula principal
             cell.rowSpan = 1;
             cell.colSpan = 1;
 
             const table = document.getElementById('designTable');
 
-            // Recriar as células em falta
             for (let r = r0; r < r0 + rs; r++) {
                 const row = table.rows[r];
                 for (let c = c0; c < c0 + cs; c++) {
-                    // Salta a célula original
                     if (r === r0 && c === c0) continue;
 
                     const newCell = document.createElement('td');
-                    // Configurar a nova célula com os mesmos atributos e eventos
                     newCell.id = `cell_${r}_${c}`;
                     newCell.dataset.row = r;
                     newCell.dataset.col = c;
@@ -668,7 +697,6 @@ class="grid-cell design-cell"></td>`;
                     newCell.contentEditable = "true";
                     newCell.className = "grid-cell design-cell";
                     
-                    // Re-adicionar os listeners (Merge, Unmerge, Modo Vaga, Clear)
                     newCell.onclick = (e) => { 
                         if(e.shiftKey) startMerge(e, newCell); 
                         else if(e.ctrlKey || e.metaKey) unmerge(newCell); 
@@ -676,7 +704,6 @@ class="grid-cell design-cell"></td>`;
                     newCell.ondblclick = () => toggleCellMode(newCell);
                     newCell.oncontextmenu = (e) => { e.preventDefault(); clearCell(newCell); };
 
-                    // Lógica de inserção: encontrar a posição correta na linha
                     let inserted = false;
                     for (let i = 0; i < row.cells.length; i++) {
                         if (parseInt(row.cells[i].dataset.col) > c) {
@@ -689,6 +716,7 @@ class="grid-cell design-cell"></td>`;
                 }
             }
     }
+
         function toggleCellMode(cell) {
             if (cell.dataset.type === "label") {
                 cell.dataset.type = "slot";
@@ -711,7 +739,7 @@ class="grid-cell design-cell"></td>`;
                     c: parseInt(td.dataset.col),
                     content: td.innerText.replace("[ VAGA ]", ""),
                     isSlot: td.dataset.type === "slot",
-                    colSpan: td.colSpan || 1, // Usa os nomes corretos para o backend
+                    colSpan: td.colSpan || 1,
                     rowSpan: td.rowSpan || 1
                 }));
 
@@ -734,6 +762,7 @@ class="grid-cell design-cell"></td>`;
             setTimeout(() => location.reload(), 1200);
             }
         }
+
         async function clearCell(cell) {
             if (await confirmDialog("Limpar conteúdo desta célula?", { icon: "🗑️", okLabel: "Limpar" })) {
                 cell.innerHTML = "";
@@ -771,7 +800,6 @@ class="grid-cell design-cell"></td>`;
         const eventNameInput = document.getElementById('eventName');
         const eventDateInput = document.getElementById('eventDate');
 
-        // Carregar se existir algo guardado
         if (localStorage.getItem('draft_eventName')) {
             eventNameInput.value = localStorage.getItem('draft_eventName');
         }
@@ -779,7 +807,6 @@ class="grid-cell design-cell"></td>`;
             eventDateInput.value = localStorage.getItem('draft_eventDate');
         }
 
-        // Ouvintes para guardar enquanto escreves
         eventNameInput.addEventListener('input', () => {
             localStorage.setItem('draft_eventName', eventNameInput.value);
         });
