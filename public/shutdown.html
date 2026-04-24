@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema Desativado – AEFCUP</title>
+<link rel="icon" type="image/x-icon" href="/lib/LogoBranco.png">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: #000; color: #e8e8e8; min-height: 100vh; overflow: hidden; position: relative; }
+  #canvas { position: fixed; inset: 0; pointer-events: none; z-index: 1; }
+  #glitch-overlay { position: fixed; inset: 0; pointer-events: none; z-index: 2; opacity: 0; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,0,0,0.03) 2px, rgba(255,0,0,0.03) 4px); }
+  #main { position: relative; z-index: 10; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 40px 24px; }
+  .container { text-align: center; max-width: 560px; width: 100%; animation: rise 1.2s cubic-bezier(0.16,1,0.3,1) forwards; }
+  @keyframes rise { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+  .glitch-text { position: relative; font-size: 28px; font-weight: 600; color: #f0f0f0; letter-spacing: -0.5px; margin-bottom: 14px; }
+  .glitch-text::before, .glitch-text::after { content: attr(data-text); position: absolute; top: 0; left: 0; right: 0; overflow: hidden; }
+  .glitch-text::before { color: #ff3333; animation: glitch-top 3.5s infinite; clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%); }
+  .glitch-text::after { color: #3333ff; animation: glitch-bot 3.5s infinite; clip-path: polygon(0 65%, 100% 65%, 100% 100%, 0 100%); }
+  @keyframes glitch-top { 0%,90%,100% { transform: translate(0,0); opacity: 0; } 92% { transform: translate(-3px,-2px); opacity: 0.8; } 94% { transform: translate(3px,1px); opacity: 0.8; } 96% { transform: translate(-1px,0); opacity: 0.8; } 98% { transform: translate(0,0); opacity: 0; } }
+  @keyframes glitch-bot { 0%,90%,100% { transform: translate(0,0); opacity: 0; } 92% { transform: translate(3px,2px); opacity: 0.8; } 94% { transform: translate(-3px,-1px); opacity: 0.8; } 96% { transform: translate(1px,0); opacity: 0.8; } 98% { transform: translate(0,0); opacity: 0; } }
+  .badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(200,30,30,0.12); border: 1px solid rgba(200,30,30,0.3); color: #ff6666; font-size: 11px; font-weight: 500; letter-spacing: 1.2px; text-transform: uppercase; padding: 8px 20px; border-radius: 100px; margin-bottom: 32px; }
+  .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: #ff4444; animation: blink 1.2s ease-in-out infinite; }
+  @keyframes blink { 0%,100% { opacity: 1; box-shadow: 0 0 6px #ff4444; } 50% { opacity: 0.2; box-shadow: none; } }
+  .icon-wrap { width: 80px; height: 80px; border-radius: 50%; background: rgba(200,30,30,0.1); border: 1px solid rgba(200,30,30,0.2); display: flex; align-items: center; justify-content: center; margin: 0 auto 28px; animation: icon-pulse 2.5s ease-in-out infinite; }
+  @keyframes icon-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(200,30,30,0); } 50% { box-shadow: 0 0 0 12px rgba(200,30,30,0.08); } }
+  .icon-svg { width: 32px; height: 32px; }
+  .subtitle { font-size: 15px; color: #666; line-height: 1.8; margin-bottom: 36px; }
+  .terminal { background: #0a0a0a; border: 1px solid rgba(200,30,30,0.2); border-radius: 12px; padding: 20px 24px; text-align: left; font-family: 'Courier New', monospace; font-size: 12px; color: #555; position: relative; overflow: hidden; }
+  .terminal::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(200,30,30,0.4), transparent); animation: scan 3s linear infinite; }
+  @keyframes scan { from { top: 0; } to { top: 100%; } }
+  .term-line { margin: 3px 0; }
+  .term-ok { color: #3a6e3a; }
+  .term-err { color: #8b0000; }
+  .term-dim { color: #333; }
+  .term-cursor { display: inline-block; width: 7px; height: 13px; background: #444; vertical-align: middle; animation: cursor-blink 1s step-end infinite; }
+  @keyframes cursor-blink { 50% { opacity: 0; } }
+  .footer { margin-top: 40px; font-size: 12px; color: #2a2a2a; letter-spacing: 0.5px; }
+  @keyframes shake { 0%,100% { transform: translate(0,0) rotate(0deg); } 10% { transform: translate(-4px,2px) rotate(-0.3deg); } 20% { transform: translate(4px,-2px) rotate(0.3deg); } 30% { transform: translate(-3px,3px) rotate(-0.2deg); } 40% { transform: translate(3px,-1px) rotate(0.2deg); } 50% { transform: translate(-2px,2px) rotate(-0.1deg); } 60% { transform: translate(2px,-2px) rotate(0.1deg); } 70% { transform: translate(-1px,1px); } 80% { transform: translate(1px,-1px); } 90% { transform: translate(-1px,0); } }
+  body.shaking { animation: shake 0.5s ease-in-out; }
+  #flash { position: fixed; inset: 0; background: rgba(180,0,0,0.6); z-index: 50; pointer-events: none; opacity: 0; transition: opacity 0.05s; }
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<div id="glitch-overlay"></div>
+<div id="flash"></div>
+<div id="main">
+  <div class="container">
+    <div class="icon-wrap">
+      <svg class="icon-svg" viewBox="0 0 32 32" fill="none">
+        <circle cx="16" cy="16" r="13" stroke="#cc3333" stroke-width="1.5"/>
+        <line x1="16" y1="8" x2="16" y2="17" stroke="#cc3333" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="16" cy="21" r="1.5" fill="#cc3333"/>
+      </svg>
+    </div>
+    <div class="badge"><div class="badge-dot"></div>Sistema Offline</div>
+    <h1 class="glitch-text" data-text="Esta aplicação foi desativada.">Esta aplicação foi desativada.</h1>
+    <p class="subtitle">O sistema de gestão da Logística AEFCUP foi encerrado permanentemente.<br>Todos os dados foram eliminados.</p>
+    <div class="terminal">
+      <div class="term-line term-dim"># destruição iniciada por super-admin</div>
+      <div class="term-line" id="t1" style="display:none"><span class="term-err">✗</span> shift_enrollments ... eliminado</div>
+      <div class="term-line" id="t2" style="display:none"><span class="term-err">✗</span> attendance_records ... eliminado</div>
+      <div class="term-line" id="t3" style="display:none"><span class="term-err">✗</span> shift_slots ... eliminado</div>
+      <div class="term-line" id="t4" style="display:none"><span class="term-err">✗</span> gallery ... eliminado</div>
+      <div class="term-line" id="t5" style="display:none"><span class="term-err">✗</span> requests ... eliminado</div>
+      <div class="term-line" id="t6" style="display:none"><span class="term-err">✗</span> users ... eliminado</div>
+      <div class="term-line" id="t7" style="display:none"><span class="term-ok">✓</span> shutdown flag ativado</div>
+      <div class="term-line" id="tcursor"><span class="term-cursor"></span></div>
+    </div>
+    <div class="footer">Logística AEFCUP &nbsp;·&nbsp; Sistema encerrado</div>
+  </div>
+</div>
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const flash = document.getElementById('flash');
+const glitch = document.getElementById('glitch-overlay');
+function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+const particles = [];
+const GRAVITY = 0.12;
+const FADE = 0.016;
+function spawnExplosion(x, y, count, colorHue) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 1.5 + Math.random() * 5;
+    particles.push({ x, y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed-1, life: 1, size: 1.5+Math.random()*3.5, hue: colorHue+(Math.random()-0.5)*30, sat: 70+Math.random()*30, spark: Math.random()>0.6 });
+  }
+}
+function spawnEmber(x, y) {
+  particles.push({ x, y, vx: (Math.random()-0.5)*0.8, vy: -(0.3+Math.random()*1.5), life: 0.7+Math.random()*0.3, size: 1+Math.random()*2, hue: 15+Math.random()*25, sat: 90, ember: true });
+}
+function updateParticles() {
+  for (let i = particles.length-1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy; p.vy += GRAVITY; p.vx *= 0.98;
+    p.life -= FADE + (p.ember ? 0.02 : 0);
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+function drawParticles() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (const p of particles) {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, p.life);
+    if (p.spark) {
+      ctx.strokeStyle = `hsl(${p.hue},${p.sat}%,70%)`; ctx.lineWidth = p.size*0.5;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x-p.vx*4, p.y-p.vy*4); ctx.stroke();
+    } else {
+      ctx.fillStyle = `hsl(${p.hue},${p.sat}%,${60+p.life*20}%)`;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size*p.life, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+function triggerShake() { document.body.classList.remove('shaking'); void document.body.offsetWidth; document.body.classList.add('shaking'); setTimeout(() => document.body.classList.remove('shaking'), 500); }
+function triggerFlash() { flash.style.opacity='1'; setTimeout(() => { flash.style.opacity='0'; }, 80); }
+function triggerGlitch(d=200) { glitch.style.opacity='1'; setTimeout(() => { glitch.style.opacity='0'; }, d); }
+function bang(x, y) { triggerShake(); triggerFlash(); triggerGlitch(150); spawnExplosion(x,y,80,10); spawnExplosion(x,y,40,25); }
+function showTermLine(id, delay) { setTimeout(() => { const el=document.getElementById(id); if(el) el.style.display='block'; }, delay); }
+let emberTimer = 0;
+function loop() {
+  updateParticles(); drawParticles();
+  emberTimer++;
+  if (emberTimer%4===0 && particles.length>0) { const p=particles[Math.floor(Math.random()*particles.length)]; if(p && Math.random()>0.5) spawnEmber(p.x,p.y); }
+  requestAnimationFrame(loop);
+}
+function randomBang() { const x=100+Math.random()*(window.innerWidth-200); const y=80+Math.random()*(window.innerHeight*0.6); bang(x,y); }
+setTimeout(() => randomBang(), 400);
+setTimeout(() => randomBang(), 900);
+setTimeout(() => randomBang(), 1400);
+setTimeout(() => randomBang(), 2100);
+setTimeout(() => randomBang(), 3200);
+showTermLine('t1',600); showTermLine('t2',1100); showTermLine('t3',1600); showTermLine('t4',2100); showTermLine('t5',2700); showTermLine('t6',3300); showTermLine('t7',4000);
+setTimeout(() => { const cur=document.getElementById('tcursor'); if(cur) cur.style.display='none'; }, 4200);
+setInterval(() => { if(Math.random()>0.7) triggerGlitch(60+Math.random()*120); }, 2000);
+setInterval(() => { if(Math.random()>0.5) { spawnExplosion(Math.random()*window.innerWidth, Math.random()*window.innerHeight*0.4, 15, 10+Math.random()*20); } }, 3500);
+loop();
+</script>
+</body>
+</html>

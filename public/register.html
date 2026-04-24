@@ -68,6 +68,32 @@
             </div>
 
             <div style="grid-column: span 2;">
+                <label for="regAssociation">Associação de Estudantes</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px;">
+                    <label id="assoc-aefcup" for="assoc-aefcup-input" style="
+                        display: flex; align-items: center; gap: 12px;
+                        padding: 14px 18px; border-radius: 10px;
+                        border: 2px solid var(--primary); background: #e8f0fe;
+                        cursor: pointer; font-weight: 600; color: var(--primary);
+                        transition: all 0.2s; margin-bottom: 0;">
+                        <input type="radio" id="assoc-aefcup-input" name="association" value="AEFCUP" checked
+                               style="width:18px; height:18px; margin:0; cursor:pointer; accent-color: var(--primary);">
+                        <span>🎓 AEFCUP</span>
+                    </label>
+                    <label id="assoc-aefcnaup" for="assoc-aefcnaup-input" style="
+                        display: flex; align-items: center; gap: 12px;
+                        padding: 14px 18px; border-radius: 10px;
+                        border: 2px solid #dadce0; background: white;
+                        cursor: pointer; font-weight: 600; color: #5f6368;
+                        transition: all 0.2s; margin-bottom: 0;">
+                        <input type="radio" id="assoc-aefcnaup-input" name="association" value="AEFCNAUP"
+                               style="width:18px; height:18px; margin:0; cursor:pointer; accent-color: var(--primary);">
+                        <span>🎓 AEFCNAUP</span>
+                    </label>
+                </div>
+            </div>
+
+            <div style="grid-column: span 2;">
                 <label for="regPass">Palavra-passe</label>
                 <input type="password" id="regPass" placeholder="Escolha uma senha segura">
             </div>
@@ -82,12 +108,31 @@
 
     <script src="/notify.js"></script>
     <script>
+        // Visual toggle for association radio buttons
+        document.querySelectorAll('input[name="association"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                document.querySelectorAll('input[name="association"]').forEach(r => {
+                    const lbl = r.parentElement;
+                    if (r.checked) {
+                        lbl.style.borderColor = 'var(--primary)';
+                        lbl.style.background = '#e8f0fe';
+                        lbl.style.color = 'var(--primary)';
+                    } else {
+                        lbl.style.borderColor = '#dadce0';
+                        lbl.style.background = 'white';
+                        lbl.style.color = '#5f6368';
+                    }
+                });
+            });
+        });
+
         async function doRegister() {
             const name = document.getElementById('regName').value;
             const email = document.getElementById('regEmail').value;
             const password = document.getElementById('regPass').value;
             const department = document.getElementById('regDept').value;
             const role = document.getElementById('regRole').value;
+            const association = document.querySelector('input[name="association"]:checked').value;
 
             if (!name || !email || !password || !department) {
                 toast("Por favor, preencha todos os campos obrigatórios.", "warning");
@@ -99,7 +144,8 @@
                 email: email,
                 password: password,
                 department: department,
-                role: role
+                role: role,
+                association: association
             };
 
             try {

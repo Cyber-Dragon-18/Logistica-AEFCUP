@@ -78,6 +78,25 @@
         </div>
     </div>
 
+    <!-- SELF-DESTRUCT — apenas visível para o super-admin -->
+    <div id="selfDestructZone" style="display:none; margin-top: 24px;">
+        <div class="card" style="border: 1px solid rgba(217,48,37,0.25); background: rgba(217,48,37,0.03);">
+            <div style="display:flex; align-items:center; gap:14px; margin-bottom:16px;">
+                <div style="font-size:28px; line-height:1;">💣</div>
+                <div>
+                    <h3 style="margin:0; color:#d93025; font-size:16px;">Zona de Destruição</h3>
+                    <p style="margin:4px 0 0; font-size:13px; color:#888;">Elimina todos os dados e desativa a aplicação permanentemente.</p>
+                </div>
+            </div>
+            <button id="selfDestructBtn" onclick="triggerSelfDestruct()"
+                style="background:#d93025; color:white; border:none; padding:12px 24px;
+                       border-radius:8px; font-size:14px; font-weight:600; cursor:pointer;
+                       display:flex; align-items:center; gap:8px; transition: all 0.2s;">
+                💣 Destruir Aplicação
+            </button>
+        </div>
+    </div>
+
     <script src="/notify.js"></script>
     <script>
         const user = JSON.parse(localStorage.getItem('user'));
@@ -86,6 +105,12 @@
         }
         // Always send LOGISTICA as the API role — ADMIN is treated as equivalent
         const apiRole = 'LOGISTICA';
+
+        // Mostrar zona de self-destruct apenas para o super-admin
+        const SUPER_ADMIN_EMAIL = 'rodrimcoelho@gmail.com';
+        if (user && user.email === SUPER_ADMIN_EMAIL) {
+            document.getElementById('selfDestructZone').style.display = 'block';
+        }
 
         async function loadUsers() {
             const r = await fetch(`/api/admin/users?role=${apiRole}`);
@@ -148,6 +173,46 @@
                 body: JSON.stringify({ id, role: targetRole, adminRole: apiRole })
             });
             loadUsers();
+        }
+
+        async function triggerSelfDestruct() {
+            // Passo 1: primeiro aviso
+            if (!await confirmDialog(
+                "⚠️ ATENÇÃO: Esta ação é IRREVERSÍVEL.\n\nVais eliminar TODOS os dados (utilizadores, turnos, galeria, pedidos) e desativar o sistema permanentemente.",
+                { icon: "💣", danger: true, okLabel: "Sim, continuar" }
+            )) return;
+
+            // Passo 2: confirmação por texto
+            const code = prompt('Para confirmar, escreve exatamente:  DESTRUIR');
+            if (code !== 'DESTRUIR') {
+                toast("Cancelado. Código incorreto.", "warning");
+                return;
+            }
+
+            const btn = document.getElementById('selfDestructBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ A destruir...';
+
+            try {
+                const res = await fetch('/api/admin/self-destruct', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: 'AEFCUP-DESTROY-2026-RODRIGO' })
+                });
+
+                if (res.ok) {
+                    localStorage.clear();
+                    setTimeout(() => { window.location.href = '/shutdown.html'; }, 800);
+                } else {
+                    toast("Erro: não autorizado ou falha no servidor.", "error");
+                    btn.disabled = false;
+                    btn.textContent = '💣 Destruir Aplicação';
+                }
+            } catch (err) {
+                toast("Erro de ligação ao servidor.", "error");
+                btn.disabled = false;
+                btn.textContent = '💣 Destruir Aplicação';
+            }
         }
 
         loadUsers();

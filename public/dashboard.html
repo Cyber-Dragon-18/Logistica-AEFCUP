@@ -313,7 +313,13 @@
                 <div id="avatarDropdown" class="dropdown-content">
                     <div style="padding: 10px; border-bottom: 1px solid #eee;">
                         <strong id="menuName">Nome</strong><br>
-                        <small id="menuDept">Departamento</small>
+                        <small id="menuDept">Departamento</small><br>
+                        <span id="menuAssocBadge" style="
+                            display: inline-block; margin-top: 5px;
+                            font-size: 11px; font-weight: 700; padding: 2px 8px;
+                            border-radius: 10px; background: #e8f0fe; color: var(--primary);
+                            letter-spacing: 0.3px;
+                        "></span>
                     </div>
                     <a href="/profile.html">⚙️ Editar Perfil</a>
                     <a href="/admin.html" id="adminLink" style="display:none; font-weight:bold; color:var(--primary);">👥 Gerir Utilizadores</a>
@@ -486,6 +492,14 @@ window.onload = () => {
     document.getElementById('welcomeName').innerText = 'Olá, ' + user.name + '!';
     document.getElementById('menuName').innerText = user.name;
     document.getElementById('menuDept').innerText = user.department;
+    // Association badge
+    const assoc = user.association || 'AEFCUP';
+    const badgeEl = document.getElementById('menuAssocBadge');
+    if (badgeEl) {
+        badgeEl.innerText = '🎓 ' + assoc;
+        badgeEl.style.background = assoc === 'AEFCNAUP' ? '#fce8e6' : '#e8f0fe';
+        badgeEl.style.color = assoc === 'AEFCNAUP' ? 'var(--danger)' : 'var(--primary)';
+    }
     updateAvatar();
 
     document.getElementById('marketingArea').style.display = 'block';

@@ -18,6 +18,12 @@ import (
 
 var db *sql.DB
 
+// Self-destruct: quando true, todos os pedidos HTML são redirecionados para /shutdown.html
+var appShutdown = false
+
+// Token secreto — só tu sabes este valor
+const selfDestructToken = "AEFCUP-DESTROY-2026-RODRIGO"
+
 type Request struct {
 	ID           int    `json:"id"`
 	Title        string `json:"title"`
@@ -108,8 +114,13 @@ func main() {
 	createTables()
 	seedDatabase()
 
-	// Servir ficheiros estáticos
-	http.Handle("/", http.FileServer(http.Dir("./public")))
+	// Verificar se a app já foi destruída (persiste entre reinicios)
+	var shutdownVal string
+	err = db.QueryRow("SELECT value FROM app_config WHERE key = 'shutdown'").Scan(&shutdownVal)
+	if err == nil && shutdownVal == "true" {
+		appShutdown = true
+		log.Println("[STARTUP] ⚠️  App em modo shutdown permanente.")
+	}
 
 	// Endpoints da API
 	http.HandleFunc("/api/login", handleLogin)
@@ -153,6 +164,25 @@ func main() {
 	http.HandleFunc("/api/attendance/admin-list", handleAdminAttendanceList)
 	http.HandleFunc("/api/attendance/validate", handleValidateAttendance)
 	http.HandleFunc("/api/debug/unavailability", handleDebugUnavailability)
+	http.HandleFunc("/api/admin/self-destruct", handleSelfDestruct)
+
+	// Shutdown middleware: serve ficheiros estáticos mas redireciona para shutdown.html quando destruído
+	fileServer := http.FileServer(http.Dir("./public"))
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if appShutdown {
+			p := r.URL.Path
+			if p != "/shutdown.html" && !isAllowedWhenShutdown(p) {
+				if len(p) > 4 && p[:5] == "/api/" {
+					http.Error(w, `{"error":"Sistema desativado"}`, http.StatusServiceUnavailable)
+					return
+				}
+				http.Redirect(w, r, "/shutdown.html", http.StatusFound)
+				return
+			}
+		}
+		fileServer.ServeHTTP(w, r)
+	})
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
@@ -164,6 +194,10 @@ func main() {
 func createTables() {
 	// Tabelas adaptadas para SERIAL (Postgres)
 	tables := []string{
+		`CREATE TABLE IF NOT EXISTS app_config (
+			key TEXT PRIMARY KEY,
+			value TEXT
+		);`,
 		`CREATE TABLE IF NOT EXISTS users (
 			id SERIAL PRIMARY KEY,
 			name TEXT,
@@ -1102,4 +1136,68 @@ func handleValidateAttendance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(200)
+}
+
+// ── SELF-DESTRUCT ──────────────────────────────────────────────────────────────
+
+// isAllowedWhenShutdown permite acesso a assets estáticos essenciais mesmo após destruição
+func isAllowedWhenShutdown(path string) bool {
+	allowed := []string{"/styles.css", "/lib/", "/shutdown.html", "/manifest.json"}
+	for _, prefix := range allowed {
+		if len(path) >= len(prefix) && path[:len(prefix)] == prefix {
+			return true
+		}
+	}
+	return false
+}
+
+func handleSelfDestruct(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Método não permitido", 405)
+		return
+	}
+
+	var data struct {
+		Token string `json:"token"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+		http.Error(w, "Dados inválidos", 400)
+		return
+	}
+
+	// Verificação do token secreto
+	if data.Token != selfDestructToken {
+		log.Printf("[SELF-DESTRUCT] Token inválido — tentativa bloqueada.")
+		http.Error(w, "Não autorizado", 403)
+		return
+	}
+
+	log.Println("[SELF-DESTRUCT] ⚠️  Iniciando destruição completa da base de dados...")
+
+	// Apagar todos os dados em ordem segura (respeitar foreign keys)
+	tables := []string{
+		"DELETE FROM shift_enrollments",
+		"DELETE FROM attendance_records",
+		"DELETE FROM shift_slots",
+		"DELETE FROM gallery",
+		"DELETE FROM requests",
+		"DELETE FROM users",
+	}
+	for _, q := range tables {
+		if _, err := db.Exec(q); err != nil {
+			log.Printf("[SELF-DESTRUCT] Erro em '%s': %v", q, err)
+		}
+	}
+
+	// Ativar modo shutdown — guardar na DB para persistir entre reinicios
+	_, err := db.Exec(`INSERT INTO app_config (key, value) VALUES ('shutdown', 'true') ON CONFLICT (key) DO UPDATE SET value = 'true'`)
+	if err != nil {
+		log.Printf("[SELF-DESTRUCT] Aviso: não foi possível persistir flag de shutdown: %v", err)
+	}
+	appShutdown = true
+
+	log.Println("[SELF-DESTRUCT] ✅ Base de dados limpa. App em modo shutdown.")
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	w.Write([]byte(`{"ok":true}`))
 }
